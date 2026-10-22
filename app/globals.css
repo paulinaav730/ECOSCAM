@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-night: #0E1227;
+  --surface-card: #131832;
+  --accent-green: #22C55E;
+  --accent-emerald: #10B981;
+  --accent-teal: #2DD4BF;
+  --accent-blue: #2563EB;
+}
+
+html,
+body {
+  background-color: #0E1227;
+  color: #F8FAFC;
+  scroll-behavior: smooth;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+dialog::backdrop {
+  background-color: rgba(6, 8, 19, 0.75);
+  backdrop-filter: blur(4px);
+}
