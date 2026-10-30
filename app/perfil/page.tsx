@@ -64,21 +64,41 @@ export default function ProfileAndAuthPage() {
     setLoading(true);
     try {
       if (authMode === "register") {
+        const resolvedAlias = alias.trim() || email.split("@")[0] || "Usuario";
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
-              alias: alias.trim() || email.split("@")[0],
+              alias: resolvedAlias,
               preferred_municipality: municipality,
             },
           },
         });
         if (error) throw error;
+
+        // Si Supabase aún no devolvió sesión en signUp, iniciar sesión inmediatamente sin pedir correo de confirmación
+        if (!data.session) {
+          await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+        }
+
         if (data.user) {
+          setUserProfile({
+            id: data.user.id,
+            email: data.user.email || email,
+            alias: resolvedAlias,
+            role: "user",
+            preferredMunicipality: municipality,
+            publicProfile: false,
+            shareAnonymousStats: false,
+            storeImages: false,
+          });
           setStatusMsg({
             type: "success",
-            text: "Registro exitoso. Revisa tu correo electrónico si la confirmación está activa o inicia sesión.",
+            text: "¡Cuenta creada y sesión iniciada automáticamente! No necesitas confirmar tu correo electrónico.",
           });
         }
       } else if (authMode === "login") {
