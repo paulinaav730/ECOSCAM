@@ -618,25 +618,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         </div>
       </div>
 
-      {/* Development / Demo Data Management */}
+      {/* Gestión del Historial Personal */}
       <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-3xl space-y-2 text-center">
         <p className="text-xs font-bold text-slate-300">
-          Gestión de Datos de Prueba
+          Privacidad y Mi Historial Personal
         </p>
-        <div className="flex gap-2">
-          <button
-            onClick={onAddSampleHistory}
-            className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold rounded-xl text-xs transition-colors"
-          >
-            + Cargar Muestras
-          </button>
-          <button
-            onClick={onResetData}
-            className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-rose-400 font-bold rounded-xl text-xs transition-colors"
-          >
-            Restablecer Todo
-          </button>
-        </div>
+        <button
+          onClick={onResetData}
+          className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-rose-400 font-bold rounded-xl text-xs transition-colors"
+        >
+          Reiniciar mi historial y puntos a cero
+        </button>
       </div>
     </div>
   );

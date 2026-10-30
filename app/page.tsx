@@ -22,33 +22,7 @@ import {
 import { buildMultiCriteriaAnalysis } from '@/lib/recycling-adapter';
 import { WasteConditionState } from '@/types/ecoscan';
 
-const INITIAL_SEED_HISTORY: HistoryItem[] = [
-  {
-    ...buildMultiCriteriaAnalysis({
-      objectName: 'Botella plástica PET de bebidas',
-      primaryMaterial: 'plastico_pet',
-      conditionState: 'limpio_seco',
-      municipality: 'Bogotá, Colombia',
-      imageUrl:
-        'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=500&auto=format&fit=crop&q=80',
-    }),
-    id: 'seed-1',
-    scannedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-  },
-  {
-    ...buildMultiCriteriaAnalysis({
-      objectName: 'Restos de frutas y verduras crudas',
-      primaryMaterial: 'organico',
-      conditionState: 'organico_fresco',
-      municipality: 'Bogotá, Colombia',
-      imageUrl:
-        'https://images.unsplash.com/photo-1528825871115-3581a5387919?w=500&auto=format&fit=crop&q=80',
-    }),
-    id: 'seed-2',
-    scannedAt: new Date(Date.now() - 3600000 * 24).toISOString(),
-  },
-];
-
+// Todas las medallas inician en 0 y bloqueadas para que cada usuario las desbloquee con su propio historial personal
 const INITIAL_BADGES: Badge[] = [
   {
     id: 'badge-1',
@@ -60,10 +34,9 @@ const INITIAL_BADGES: Badge[] = [
     rarity: 'Común',
     rewardPoints: 20,
     howToUnlock:
-      'Escanea o analiza tu primer residuo con la cámara, muestras o catálogo en EcoScan.',
-    unlocked: true,
-    unlockedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-    progress: { current: 1, total: 1 },
+      'Escanea y guarda tu primer residuo en tu historial personal de EcoScan.',
+    unlocked: false,
+    progress: { current: 0, total: 1 },
   },
   {
     id: 'badge-2',
@@ -75,10 +48,9 @@ const INITIAL_BADGES: Badge[] = [
     rarity: 'Raro',
     rewardPoints: 30,
     howToUnlock:
-      'Deposita al menos 2 residuos limpios y secos en la ruta de aprovechamiento (Blanco).',
-    unlocked: true,
-    unlockedAt: new Date(Date.now() - 86400000).toISOString(),
-    progress: { current: 2, total: 2 },
+      'Guarda al menos 2 residuos limpios y secos en la ruta de aprovechamiento (Blanco).',
+    unlocked: false,
+    progress: { current: 0, total: 2 },
   },
   {
     id: 'badge-3',
@@ -90,9 +62,9 @@ const INITIAL_BADGES: Badge[] = [
     rarity: 'Raro',
     rewardPoints: 25,
     howToUnlock:
-      'Escanea al menos 1 residuo orgánico para aprovechamiento en compostaje (Verde).',
+      'Guarda al menos 1 residuo orgánico para aprovechamiento en compostaje (Verde).',
     unlocked: false,
-    progress: { current: 1, total: 1 },
+    progress: { current: 0, total: 1 },
   },
   {
     id: 'badge-4',
@@ -102,10 +74,9 @@ const INITIAL_BADGES: Badge[] = [
     category: 'Materiales',
     rarity: 'Común',
     rewardPoints: 20,
-    howToUnlock: 'Escanea 1 o más productos de plástico o PET en EcoScan.',
-    unlocked: true,
-    unlockedAt: new Date(Date.now() - 3600000 * 5).toISOString(),
-    progress: { current: 1, total: 1 },
+    howToUnlock: 'Escanea y guarda 1 o más productos de plástico o PET en EcoScan.',
+    unlocked: false,
+    progress: { current: 0, total: 1 },
   },
   {
     id: 'badge-5',
@@ -117,7 +88,7 @@ const INITIAL_BADGES: Badge[] = [
     rarity: 'Raro',
     rewardPoints: 35,
     howToUnlock:
-      'Escanea y registra latas de conservas o bebidas (categoría metal).',
+      'Escanea y guarda latas de conservas o bebidas (categoría metal).',
     unlocked: false,
     progress: { current: 0, total: 1 },
   },
@@ -144,9 +115,9 @@ const INITIAL_BADGES: Badge[] = [
     category: 'Especiales Colombia',
     rarity: 'Épico',
     rewardPoints: 50,
-    howToUnlock: 'Acumula al menos 3 residuos escaneados y clasificados.',
+    howToUnlock: 'Acumula al menos 3 residuos escaneados y guardados en tu historial.',
     unlocked: false,
-    progress: { current: 2, total: 3 },
+    progress: { current: 0, total: 3 },
   },
   {
     id: 'badge-8',
@@ -157,10 +128,9 @@ const INITIAL_BADGES: Badge[] = [
     category: 'Hábitos Eco',
     rarity: 'Épico',
     rewardPoints: 60,
-    howToUnlock: 'Alcanza una cifra estimada de 0.5 kg o más reciclados.',
-    unlocked: true,
-    unlockedAt: new Date().toISOString(),
-    progress: { current: 0.7, total: 0.5 },
+    howToUnlock: 'Alcanza una cifra estimada de 0.5 kg o más reciclados en tu historial.',
+    unlocked: false,
+    progress: { current: 0, total: 0.5 },
   },
   {
     id: 'badge-9',
@@ -171,10 +141,9 @@ const INITIAL_BADGES: Badge[] = [
     rarity: 'Raro',
     rewardPoints: 35,
     howToUnlock:
-      'Escanea productos de al menos 2 materiales diferentes (plástico, orgánico, metal, posconsumo, etc.).',
-    unlocked: true,
-    unlockedAt: new Date().toISOString(),
-    progress: { current: 2, total: 2 },
+      'Guarda residuos de al menos 2 materiales diferentes (plástico, orgánico, metal, posconsumo, etc.).',
+    unlocked: false,
+    progress: { current: 0, total: 2 },
   },
   {
     id: 'badge-10',
@@ -184,11 +153,16 @@ const INITIAL_BADGES: Badge[] = [
     category: 'Especiales Colombia',
     rarity: 'Legendario',
     rewardPoints: 100,
-    howToUnlock: 'Alcanza 100 o más Puntos Eco totales.',
+    howToUnlock: 'Alcanza 100 o más Puntos Eco totales con tus registros.',
     unlocked: false,
-    progress: { current: 85, total: 100 },
+    progress: { current: 0, total: 100 },
   },
 ];
+
+function getHistoryStorageKey(email?: string): string {
+  const cleanEmail = (email || 'anon').trim().toLowerCase();
+  return `ecoScan_personalHistory_v3_${cleanEmail}`;
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('inicio');
@@ -214,19 +188,23 @@ export default function App() {
     isLoggedIn: false,
   });
 
-  const [history, setHistory] = useState<HistoryItem[]>(INITIAL_SEED_HISTORY);
+  // Todo usuario nuevo empieza con historial vacío (0 puntos, 0 escaneados, 0 medallas)
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
-  // Hydrate from localStorage on client mount
+  // Hydrate account from localStorage on client mount
   useEffect(() => {
     try {
       const savedAccount = localStorage.getItem('ecoScan_authSession_v2');
       if (savedAccount) {
-        setUserAccount(JSON.parse(savedAccount));
-      }
-      const savedHistory = localStorage.getItem('ecoScan_history');
-      if (savedHistory) {
-        setHistory(JSON.parse(savedHistory));
+        const parsedAccount = JSON.parse(savedAccount);
+        setUserAccount(parsedAccount);
+        if (parsedAccount?.email) {
+          const userHistoryRaw = localStorage.getItem(
+            getHistoryStorageKey(parsedAccount.email)
+          );
+          setHistory(userHistoryRaw ? JSON.parse(userHistoryRaw) : []);
+        }
       }
     } catch (e) {
       console.error('Error reading localStorage:', e);
@@ -234,6 +212,7 @@ export default function App() {
     setHydrated(true);
   }, []);
 
+  // Save account session
   useEffect(() => {
     if (!hydrated) return;
     try {
@@ -246,19 +225,23 @@ export default function App() {
     }
   }, [userAccount, hydrated]);
 
+  // Save personal history scoped by the logged-in user's email
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || !userAccount.isLoggedIn || !userAccount.email) return;
     try {
-      localStorage.setItem('ecoScan_history', JSON.stringify(history));
+      localStorage.setItem(
+        getHistoryStorageKey(userAccount.email),
+        JSON.stringify(history)
+      );
     } catch (e) {
-      console.error('Error saving history:', e);
+      console.error('Error saving personal history:', e);
     }
-  }, [history, hydrated]);
+  }, [history, userAccount.isLoggedIn, userAccount.email, hydrated]);
 
-  // Calculate user profile stats from history
+  // Calculate user profile stats strictly from their personal history (starts at 0!)
   const calculatedPoints = history.reduce(
     (acc, curr) => acc + (curr.ecoPoints || 15),
-    50
+    0
   );
   const scannedCount = history.length;
   const kgEstimate = Number((scannedCount * 0.35).toFixed(1));
@@ -284,7 +267,7 @@ export default function App() {
   const uniqueCategories = new Set(history.map((h) => h.category)).size;
 
   const badges = INITIAL_BADGES.map((b) => {
-    let unlocked = b.unlocked;
+    let unlocked = false;
     let progress = b.progress;
 
     if (b.id === 'badge-1') {
@@ -322,8 +305,7 @@ export default function App() {
     return {
       ...b,
       unlocked,
-      unlockedAt:
-        unlocked && !b.unlockedAt ? new Date().toISOString() : b.unlockedAt,
+      unlockedAt: unlocked ? new Date().toISOString() : undefined,
       progress,
     };
   });
@@ -347,12 +329,28 @@ export default function App() {
     email: string;
     city: string;
   }) => {
+    // Cargar únicamente el historial personal de este correo (o vacío [] si es cuenta nueva)
+    let personalHistory: HistoryItem[] = [];
+    try {
+      const savedUserHistory = localStorage.getItem(
+        getHistoryStorageKey(userData.email)
+      );
+      if (savedUserHistory) {
+        personalHistory = JSON.parse(savedUserHistory);
+      }
+    } catch (e) {
+      console.error('Error loading user history:', e);
+    }
+
+    setHistory(personalHistory);
+    setActiveAnalysis(null);
     setUserAccount({
       name: userData.name,
       email: userData.email,
       city: userData.city,
       isLoggedIn: true,
     });
+    setActiveTab('inicio');
     setIsAuthModalOpen(false);
   };
 
@@ -363,6 +361,8 @@ export default function App() {
       city: 'Bogotá, Colombia',
       isLoggedIn: false,
     });
+    setHistory([]);
+    setActiveAnalysis(null);
     setIsAuthModalOpen(false);
   };
 
@@ -422,12 +422,10 @@ export default function App() {
     setActiveTab('resultado');
   };
 
-  const handleAddSampleHistory = () => {
-    setHistory(INITIAL_SEED_HISTORY);
-  };
-
   const handleResetData = () => {
-    localStorage.removeItem('ecoScan_history');
+    if (userAccount.email) {
+      localStorage.removeItem(getHistoryStorageKey(userAccount.email));
+    }
     setHistory([]);
     setActiveAnalysis(null);
   };
@@ -633,7 +631,7 @@ export default function App() {
               <ProfileScreen
                 userProfile={userProfile}
                 onResetData={handleResetData}
-                onAddSampleHistory={handleAddSampleHistory}
+                onAddSampleHistory={() => {}}
                 setActiveTab={setActiveTab}
                 onOpenAuth={() => setIsAuthModalOpen(true)}
                 onLogout={handleLogout}
