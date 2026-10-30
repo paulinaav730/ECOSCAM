@@ -6,7 +6,13 @@ import type {
   EnvironmentalSource,
 } from "@/types/ecoscan";
 
-export type TabType = 'inicio' | 'escanear' | 'resultado' | 'historial' | 'perfil';
+export type TabType =
+  | 'inicio'
+  | 'escanear'
+  | 'ecoworld'
+  | 'resultado'
+  | 'historial'
+  | 'perfil';
 
 export type CategoryType =
   | 'plástico'
@@ -66,6 +72,9 @@ export interface UserProfile {
   levelName: string;
   levelNumber: number;
   totalPoints: number;
+  scanPoints?: number;
+  ecoWorldPoints?: number;
+  ecoWorldMissionsCompleted?: number;
   pointsToNextLevel: number;
   scannedCount: number;
   kgRecycledEstimate: number;
@@ -98,4 +107,30 @@ export interface PresetSample {
   primaryMaterial: MaterialType;
   queryName: string;
   imageThumbnail: string;
+}
+
+export const ECOWORLD_REWARD_CONFIG = {
+  completeMission: 5,
+  completeAllObjectives: 5,
+  perfectMission: 5,
+} as const;
+
+export const VALID_ECOSYSTEMS = [
+  'parque_olvidado',
+  'rio_contaminado',
+  'bosque_perdido',
+  'ciudad_verde',
+] as const;
+
+export type EcosystemId = (typeof VALID_ECOSYSTEMS)[number];
+
+export interface EcoWorldMissionMilestoneState {
+  unlocked: boolean;
+  completed: boolean;
+  recoveryPct: number;
+  bestScore: number;
+  stars: number;
+  rewardedCompletion: boolean;
+  rewardedObjectives: boolean;
+  rewardedPerfect: boolean;
 }

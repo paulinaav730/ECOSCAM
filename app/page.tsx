@@ -9,6 +9,11 @@ import { ResultScreen } from '@/components/ecoscan-ui/ResultScreen';
 import { HistoryScreen } from '@/components/ecoscan-ui/HistoryScreen';
 import { ProfileScreen } from '@/components/ecoscan-ui/ProfileScreen';
 import {
+  EcoWorldScreen,
+  EcoWorldProgressData,
+  INITIAL_ECOWORLD_PROGRESS,
+} from '@/components/ecoscan-ui/EcoWorldScreen';
+import {
   AuthScreen,
   SCIENTIFIC_ECO_FACTS,
 } from '@/components/ecoscan-ui/AuthScreen';
@@ -22,7 +27,6 @@ import {
 import { buildMultiCriteriaAnalysis } from '@/lib/recycling-adapter';
 import { WasteConditionState } from '@/types/ecoscan';
 
-// Todas las medallas inician en 0 y bloqueadas para que cada usuario las desbloquee con su propio historial personal
 const INITIAL_BADGES: Badge[] = [
   {
     id: 'badge-1',
@@ -74,7 +78,8 @@ const INITIAL_BADGES: Badge[] = [
     category: 'Materiales',
     rarity: 'Común',
     rewardPoints: 20,
-    howToUnlock: 'Escanea y guarda 1 o más productos de plástico o PET en EcoScan.',
+    howToUnlock:
+      'Escanea y guarda 1 o más productos de plástico o PET en EcoScan.',
     unlocked: false,
     progress: { current: 0, total: 1 },
   },
@@ -115,7 +120,8 @@ const INITIAL_BADGES: Badge[] = [
     category: 'Especiales Colombia',
     rarity: 'Épico',
     rewardPoints: 50,
-    howToUnlock: 'Acumula al menos 3 residuos escaneados y guardados en tu historial.',
+    howToUnlock:
+      'Acumula al menos 3 residuos escaneados y guardados en tu historial.',
     unlocked: false,
     progress: { current: 0, total: 3 },
   },
@@ -128,7 +134,8 @@ const INITIAL_BADGES: Badge[] = [
     category: 'Hábitos Eco',
     rarity: 'Épico',
     rewardPoints: 60,
-    howToUnlock: 'Alcanza una cifra estimada de 0.5 kg o más reciclados en tu historial.',
+    howToUnlock:
+      'Alcanza una cifra estimada de 0.5 kg o más reciclados en tu historial.',
     unlocked: false,
     progress: { current: 0, total: 0.5 },
   },
@@ -153,7 +160,7 @@ const INITIAL_BADGES: Badge[] = [
     category: 'Especiales Colombia',
     rarity: 'Legendario',
     rewardPoints: 100,
-    howToUnlock: 'Alcanza 100 o más Puntos Eco totales con tus registros.',
+    howToUnlock: 'Alcanza 100 o más Puntos Eco totales con tus registros y misiones.',
     unlocked: false,
     progress: { current: 0, total: 100 },
   },
@@ -162,6 +169,11 @@ const INITIAL_BADGES: Badge[] = [
 function getHistoryStorageKey(email?: string): string {
   const cleanEmail = (email || 'anon').trim().toLowerCase();
   return `ecoScan_personalHistory_v3_${cleanEmail}`;
+}
+
+function getEcoWorldStorageKey(email?: string): string {
+  const cleanEmail = (email || 'anon').trim().toLowerCase();
+  return `ecoScan_ecoWorld_v1_${cleanEmail}`;
 }
 
 export default function App() {
@@ -190,9 +202,11 @@ export default function App() {
 
   // Todo usuario nuevo empieza con historial vacío (0 puntos, 0 escaneados, 0 medallas)
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [ecoWorldProgress, setEcoWorldProgress] =
+    useState<EcoWorldProgressData>(INITIAL_ECOWORLD_PROGRESS);
   const [hydrated, setHydrated] = useState(false);
 
-  // Hydrate account from localStorage on client mount
+  // Hydrate account, personal history, and Eco World progress from localStorage on client mount
   useEffect(() => {
     try {
       const savedAccount = localStorage.getItem('ecoScan_authSession_v2');
@@ -204,6 +218,15 @@ export default function App() {
             getHistoryStorageKey(parsedAccount.email)
           );
           setHistory(userHistoryRaw ? JSON.parse(userHistoryRaw) : []);
+
+          const userEcoWorldRaw = localStorage.getItem(
+            getEcoWorldStorageKey(parsedAccount.email)
+          );
+          setEcoWorldProgress(
+            userEcoWorldRaw
+              ? JSON.parse(userEcoWorldRaw)
+              : INITIAL_ECOWORLD_PROGRESS
+          );
         }
       }
     } catch (e) {
@@ -238,11 +261,27 @@ export default function App() {
     }
   }, [history, userAccount.isLoggedIn, userAccount.email, hydrated]);
 
-  // Calculate user profile stats strictly from their personal history (starts at 0!)
-  const calculatedPoints = history.reduce(
+  // Save Eco World progress scoped by the logged-in user's email
+  useEffect(() => {
+    if (!hydrated || !userAccount.isLoggedIn || !userAccount.email) return;
+    try {
+      localStorage.setItem(
+        getEcoWorldStorageKey(userAccount.email),
+        JSON.stringify(ecoWorldProgress)
+      );
+    } catch (e) {
+      console.error('Error saving Eco World progress:', e);
+    }
+  }, [ecoWorldProgress, userAccount.isLoggedIn, userAccount.email, hydrated]);
+
+  // Sistema unificado de puntos: Puntos de Escaneo ECOSCAM + Puntos Extra ECO WORLD
+  const scanPoints = history.reduce(
     (acc, curr) => acc + (curr.ecoPoints || 15),
     0
   );
+  const ecoWorldPoints = ecoWorldProgress.totalEcoWorldPoints || 0;
+  const calculatedPoints = scanPoints + ecoWorldPoints;
+
   const scannedCount = history.length;
   const kgEstimate = Number((scannedCount * 0.35).toFixed(1));
   const levelNumber = Math.floor(calculatedPoints / 100) + 1;
@@ -318,6 +357,9 @@ export default function App() {
     levelName,
     levelNumber,
     totalPoints: calculatedPoints,
+    scanPoints,
+    ecoWorldPoints,
+    ecoWorldMissionsCompleted: ecoWorldProgress.missionsCompleted,
     pointsToNextLevel: 100,
     scannedCount,
     kgRecycledEstimate: kgEstimate,
@@ -329,8 +371,8 @@ export default function App() {
     email: string;
     city: string;
   }) => {
-    // Cargar únicamente el historial personal de este correo (o vacío [] si es cuenta nueva)
     let personalHistory: HistoryItem[] = [];
+    let personalEcoWorld: EcoWorldProgressData = INITIAL_ECOWORLD_PROGRESS;
     try {
       const savedUserHistory = localStorage.getItem(
         getHistoryStorageKey(userData.email)
@@ -338,11 +380,18 @@ export default function App() {
       if (savedUserHistory) {
         personalHistory = JSON.parse(savedUserHistory);
       }
+      const savedUserEcoWorld = localStorage.getItem(
+        getEcoWorldStorageKey(userData.email)
+      );
+      if (savedUserEcoWorld) {
+        personalEcoWorld = JSON.parse(savedUserEcoWorld);
+      }
     } catch (e) {
-      console.error('Error loading user history:', e);
+      console.error('Error loading user data:', e);
     }
 
     setHistory(personalHistory);
+    setEcoWorldProgress(personalEcoWorld);
     setActiveAnalysis(null);
     setUserAccount({
       name: userData.name,
@@ -362,6 +411,7 @@ export default function App() {
       isLoggedIn: false,
     });
     setHistory([]);
+    setEcoWorldProgress(INITIAL_ECOWORLD_PROGRESS);
     setActiveAnalysis(null);
     setIsAuthModalOpen(false);
   };
@@ -425,8 +475,10 @@ export default function App() {
   const handleResetData = () => {
     if (userAccount.email) {
       localStorage.removeItem(getHistoryStorageKey(userAccount.email));
+      localStorage.removeItem(getEcoWorldStorageKey(userAccount.email));
     }
     setHistory([]);
+    setEcoWorldProgress(INITIAL_ECOWORLD_PROGRESS);
     setActiveAnalysis(null);
   };
 
@@ -453,7 +505,9 @@ export default function App() {
               Datos científicos que transforman hábitos.
             </h1>
             <p className="text-slate-400 text-xs leading-relaxed">
-              Cada residuo tiene una huella química y energética distinta. Conoce por qué el estado de limpieza y la separación en la fuente son decisivos:
+              Cada residuo tiene una huella química y energética distinta.
+              Conoce por qué el estado de limpieza y la separación en la fuente
+              son decisivos:
             </p>
 
             <div className="space-y-3 pt-1">
@@ -495,7 +549,9 @@ export default function App() {
                 Más allá del color de la caneca
               </h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                En Colombia se generan cerca de 12 millones de toneladas de residuos al año. Cuando entregas tus envases limpios y secos, dignificas la labor de más de 60.000 recicladores de oficio.
+                En Colombia se generan cerca de 12 millones de toneladas de
+                residuos al año. Cuando entregas tus envases limpios y secos,
+                dignificas la labor de más de 60.000 recicladores de oficio.
               </p>
             </div>
 
@@ -540,7 +596,7 @@ export default function App() {
         {/* Desktop Side Hero Panel (Geometric Balance Theme) */}
         <div className="hidden md:flex flex-col flex-1 max-w-sm space-y-6 text-left py-8">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-black tracking-wider uppercase w-fit">
-            <span>🇨🇴 EcoScan AI Colombia v2.0</span>
+            <span>🇨🇴 EcoScan AI + Eco World 2D</span>
           </div>
 
           <h1 className="text-4xl font-black tracking-tight leading-tight text-white">
@@ -548,11 +604,10 @@ export default function App() {
           </h1>
 
           <p className="text-slate-400 text-sm leading-relaxed">
-            Identifica tus residuos al instante con Inteligencia Artificial Gemini y evalúa su{' '}
-            <strong>
-              material, estado real de limpieza, economía circular y ruta Posconsumo
-            </strong>{' '}
-            (Resolución 2184 de 2019).
+            Identifica tus residuos con Inteligencia Artificial, evalúa su{' '}
+            <strong>estado de limpieza y ruta Posconsumo</strong>, y juega{' '}
+            <strong className="text-emerald-400">ECO WORLD</strong> para
+            recuperar ecosistemas virtuales y ganar puntos extra.
           </p>
 
           <div className="grid grid-cols-2 gap-3 pt-2">
@@ -561,7 +616,10 @@ export default function App() {
                 {userProfile.totalPoints}
               </p>
               <p className="text-xs font-bold text-slate-400">
-                Puntos Eco Acumulados
+                Puntos Eco Totales
+              </p>
+              <p className="text-[10px] text-slate-500">
+                {scanPoints} escaneo + {ecoWorldPoints} Eco World
               </p>
             </div>
             <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
@@ -571,6 +629,9 @@ export default function App() {
               </p>
               <p className="text-xs font-bold text-slate-400">
                 Medallas Desbloqueadas
+              </p>
+              <p className="text-[10px] text-slate-500">
+                {ecoWorldProgress.missionsCompleted} / 4 ecosistemas
               </p>
             </div>
           </div>
@@ -594,6 +655,14 @@ export default function App() {
                 userProfile={userProfile}
                 onSelectPreset={handleSelectPresetFromHome}
                 onSelectCatalogQuery={handleSelectCatalogQueryFromHome}
+              />
+            )}
+
+            {activeTab === 'ecoworld' && (
+              <EcoWorldScreen
+                userProfile={userProfile}
+                progress={ecoWorldProgress}
+                onUpdateProgress={setEcoWorldProgress}
               />
             )}
 

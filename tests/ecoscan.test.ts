@@ -18,6 +18,9 @@ import {
   ImageAnalysisRequestSchema,
   RuleEvaluationInputSchema,
 } from "@/lib/validations/schemas";
+import { WokwiESP32ControllerBridge } from "@/lib/wokwi/esp32-controller";
+import { ECOWORLD_REWARD_CONFIG } from "@/components/ecoscan-ui/types";
+import { INITIAL_ECOWORLD_PROGRESS } from "@/components/ecoscan-ui/EcoWorldScreen";
 
 describe("EcoScan — Motor de Reglas de Clasificación Ambiental (Res. 2184 de 2019 y Posconsumo)", () => {
   it("clasifica botella PET limpia y seca en recipiente BLANCO (Aprovechable)", () => {
@@ -238,5 +241,30 @@ describe("EcoScan — Servicio de IA y Puntos de Recolección", () => {
         p.materialsAccepted.some((m) => m.wasteCategory === "posconsumo_especial")
       )
     ).toBe(true);
+  });
+});
+
+describe("EcoScan — Integración ECO WORLD 2D y Wokwi ESP32", () => {
+  it("inicializa los 4 ecosistemas con Parque Olvidado desbloqueado y los demás bloqueados en cero", () => {
+    expect(INITIAL_ECOWORLD_PROGRESS.totalEcoWorldPoints).toBe(0);
+    expect(INITIAL_ECOWORLD_PROGRESS.missionsCompleted).toBe(0);
+    expect(INITIAL_ECOWORLD_PROGRESS.ecosystems.parque_olvidado.unlocked).toBe(true);
+    expect(INITIAL_ECOWORLD_PROGRESS.ecosystems.rio_contaminado.unlocked).toBe(false);
+    expect(INITIAL_ECOWORLD_PROGRESS.ecosystems.bosque_perdido.unlocked).toBe(false);
+    expect(INITIAL_ECOWORLD_PROGRESS.ecosystems.ciudad_verde.unlocked).toBe(false);
+  });
+
+  it("configura recompensas oficiales de ECO WORLD (+5 misión, +5 objetivos, +5 perfecta)", () => {
+    expect(ECOWORLD_REWARD_CONFIG.completeMission).toBe(5);
+    expect(ECOWORLD_REWARD_CONFIG.completeAllObjectives).toBe(5);
+    expect(ECOWORLD_REWARD_CONFIG.perfectMission).toBe(5);
+  });
+
+  it("normaliza lecturas ADC de potenciómetro ESP32 (0..4095) a eje [-1..1] sin simular conexión falsa", () => {
+    const bridge = new WokwiESP32ControllerBridge();
+    expect(bridge.connectionStatus).toBe("disconnected");
+    expect(WokwiESP32ControllerBridge.normalizePotentiometerADC(0)).toBe(-1);
+    expect(WokwiESP32ControllerBridge.normalizePotentiometerADC(2048)).toBe(0);
+    expect(WokwiESP32ControllerBridge.normalizePotentiometerADC(4095)).toBe(1);
   });
 });

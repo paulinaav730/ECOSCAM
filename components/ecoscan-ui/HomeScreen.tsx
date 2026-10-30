@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Zap,
   Search,
+  Gamepad2,
 } from 'lucide-react';
 import { TabType, UserProfile, BinColorType } from './types';
 import { COLOMBIA_BINS, COLOMBIA_ECO_TIPS } from './data/colombiaBins';
@@ -186,6 +187,35 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Acceso Destacado a ECO WORLD (Videojuego 2D Integrado) */}
+      <div className="bg-gradient-to-r from-[#0E1227] via-emerald-950/90 to-slate-900 border border-emerald-500/40 rounded-3xl p-4 shadow-xl flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 shadow-lg shadow-emerald-500/20 flex-shrink-0">
+            <Gamepad2 className="w-6 h-6 stroke-[2.5]" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-black text-white uppercase tracking-wider">
+                ECO WORLD 2D
+              </span>
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                +{userProfile.ecoWorldPoints || 0} pts extra
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-300 line-clamp-1">
+              Cada acción transforma el planeta • Recupera ecosistemas y gana
+              puntos
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => setActiveTab('ecoworld')}
+          className="px-3.5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs whitespace-nowrap transition-transform active:scale-95"
+        >
+          Jugar Ahora
+        </button>
       </div>
 
       {/* Quick Presets / Try right now */}

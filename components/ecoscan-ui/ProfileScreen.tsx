@@ -167,6 +167,26 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             </span>{' '}
             para el siguiente nivel
           </p>
+
+          {/* Trazabilidad de Origen de Puntos (Escaneos ECOSCAM + Videojuego ECO WORLD) */}
+          <div className="grid grid-cols-2 gap-2 pt-2">
+            <div className="bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 flex items-center justify-between">
+              <span className="text-[10px] text-slate-400 font-medium">
+                Escaneo Residuos
+              </span>
+              <span className="text-xs font-black text-emerald-400">
+                {userProfile.scanPoints ?? userProfile.totalPoints} pts
+              </span>
+            </div>
+            <div className="bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 flex items-center justify-between">
+              <span className="text-[10px] text-slate-400 font-medium">
+                Extra Eco World
+              </span>
+              <span className="text-xs font-black text-cyan-400">
+                +{userProfile.ecoWorldPoints ?? 0} pts
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
