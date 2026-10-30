@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User,
   Mail,
@@ -14,6 +14,10 @@ import {
   LogIn,
   ShieldCheck,
   X,
+  FlaskConical,
+  Globe2,
+  Recycle,
+  RefreshCw,
 } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
@@ -42,12 +46,46 @@ const COLOMBIAN_CITIES = [
   'Villavicencio, Meta',
 ];
 
+export const SCIENTIFIC_ECO_FACTS = [
+  {
+    tag: 'Dato Científico • Energía',
+    icon: FlaskConical,
+    title: 'El aluminio ahorra el 95% de energía',
+    fact: 'Reciclar una sola lata de aluminio requiere apenas el 5% de la energía necesaria para extraer bauxita virgen y mantiene encendida una pantalla durante 3 horas.',
+  },
+  {
+    tag: 'Dato Ambiental • Agua',
+    icon: Globe2,
+    title: '1 litro de aceite contamina 1.000 L de agua',
+    fact: 'El aceite de cocina usado forma una película superficial que bloquea el oxígeno en ríos y quebradas. Entregarlo en botella cerrada permite transformarlo en biodiésel.',
+  },
+  {
+    tag: 'Dato Curioso • Química',
+    icon: Recycle,
+    title: 'El vidrio es 100% reciclable infinitas veces',
+    fact: 'A diferencia de otros polímeros, la estructura de sílice del vidrio no pierde propiedades al fundirse: una botella reciclada vuelve a ser botella en menos de 30 días.',
+  },
+  {
+    tag: 'Dato Científico • Clima',
+    icon: Sparkles,
+    title: 'El metano calienta 28 veces más que el CO₂',
+    fact: 'Cuando los restos de comida se entierran sin oxígeno en un relleno sanitario producen gas metano (CH₄). Separarlos en la ruta verde para compostaje evita estas emisiones.',
+  },
+  {
+    tag: 'Dato Ambiental • Bosques',
+    icon: Leaf,
+    title: '1 tonelada de cartón salva 17 árboles adultos',
+    fact: 'Además ahorra 26.000 litros de agua. Por eso es vital no mezclar cartón limpio con restos de grasa o aceite, ya que los lípidos impiden recuperar las fibras de celulosa.',
+  },
+];
+
 export const AuthScreen: React.FC<AuthScreenProps> = ({
   onLoginSuccess,
   onClose,
   initialMode = 'login',
 }) => {
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
+  const [factIndex, setFactIndex] = useState(0);
 
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -62,17 +100,16 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleDemoLogin = () => {
-    setErrorMsg(null);
-    setSuccessMsg('¡Bienvenida de nuevo, Paulina!');
-    setTimeout(() => {
-      onLoginSuccess({
-        name: 'Paulina Avendaño',
-        email: 'paulina.avendano@ecoscan.co',
-        city: 'Bogotá, Colombia',
-      });
-    }, 500);
-  };
+  // Rotate scientific/eco facts every 7 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setFactIndex((prev) => (prev + 1) % SCIENTIFIC_ECO_FACTS.length);
+    }, 7000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const currentFact = SCIENTIFIC_ECO_FACTS[factIndex];
+  const FactIcon = currentFact.icon;
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,22 +151,20 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           return;
         }
       } catch {
-        // Fallback local si la cuenta es local/demo
+        // Fallback local
       }
     }
 
     setIsSubmitting(false);
-    const derivedName = loginEmail.toLowerCase().includes('paulina')
-      ? 'Paulina Avendaño'
-      : loginEmail
-          .split('@')[0]
-          .replace('.', ' ')
-          .replace(/^./, (str) => str.toUpperCase());
+    const derivedName = loginEmail
+      .split('@')[0]
+      .replace(/[._-]/g, ' ')
+      .replace(/\b\w/g, (str) => str.toUpperCase());
 
     setSuccessMsg('¡Sesión iniciada correctamente!');
     setTimeout(() => {
       onLoginSuccess({
-        name: derivedName || 'Paulina Avendaño',
+        name: derivedName || 'Usuario EcoScan',
         email: loginEmail.trim(),
         city: 'Bogotá, Colombia',
       });
@@ -176,12 +211,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           },
         });
       } catch {
-        // Continúa con sesión activa inmediata sin pedir correo de confirmación
+        // Continúa con sesión activa inmediata
       }
     }
 
     setIsSubmitting(false);
-    setSuccessMsg(`¡Cuenta creada e iniciada para ${regName.trim()}!`);
+    setSuccessMsg(`¡Cuenta creada con éxito para ${regName.trim()}!`);
     setTimeout(() => {
       onLoginSuccess({
         name: regName.trim(),
@@ -192,7 +227,40 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   };
 
   return (
-    <div className="space-y-5 animate-fadeIn pb-6">
+    <div className="space-y-4 animate-fadeIn pb-6">
+      {/* Top Pill with Scientific / Environmental Fact (Visible on Mobile & Desktop) */}
+      <div className="bg-slate-900/90 border border-emerald-500/30 rounded-2xl p-3.5 shadow-lg relative overflow-hidden">
+        <div className="flex items-start justify-between gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 flex-shrink-0 mt-0.5">
+            <FactIcon className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0 space-y-0.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">
+                {currentFact.tag}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setFactIndex((prev) => (prev + 1) % SCIENTIFIC_ECO_FACTS.length)
+                }
+                className="text-[10px] text-slate-400 hover:text-emerald-300 inline-flex items-center gap-1 transition-colors"
+                title="Ver otro dato científico"
+              >
+                <RefreshCw className="w-3 h-3" />
+                <span>Siguiente dato</span>
+              </button>
+            </div>
+            <p className="text-xs font-bold text-white leading-snug">
+              {currentFact.title}
+            </p>
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              {currentFact.fact}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Top Banner */}
       <div className="bg-gradient-to-br from-emerald-950/80 via-slate-900 to-teal-950 p-6 rounded-3xl border border-emerald-500/30 shadow-2xl relative overflow-hidden">
         {onClose && (
@@ -215,7 +283,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             </h2>
             <p className="text-xs text-slate-300 font-medium max-w-xs mt-1">
               Guarda tu progreso de reciclaje, acumula Puntos Eco y desbloquea
-              medallas sin necesidad de correo de confirmación.
+              medallas en todo el país.
             </p>
           </div>
         </div>
@@ -223,6 +291,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         {/* Mode Selector Tabs */}
         <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950/80 rounded-2xl border border-slate-800 mt-5">
           <button
+            type="button"
             onClick={() => {
               setMode('login');
               setErrorMsg(null);
@@ -238,6 +307,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           </button>
 
           <button
+            type="button"
             onClick={() => {
               setMode('register');
               setErrorMsg(null);
@@ -329,20 +399,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             </span>
             <ArrowRight className="w-4 h-4 stroke-[2.5]" />
           </button>
-
-          <div className="pt-3 border-t border-slate-800/80">
-            <p className="text-[10px] text-center text-slate-400 mb-2 font-medium">
-              ¿Quieres probar rápido el sistema?
-            </p>
-            <button
-              type="button"
-              onClick={handleDemoLogin}
-              className="w-full py-2.5 bg-slate-950 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-950/40 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-              <span>Ingresar Rápido como Paulina Avendaño</span>
-            </button>
-          </div>
         </form>
       ) : (
         <form
@@ -352,10 +408,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           <div className="space-y-1">
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
               <UserPlus className="w-4 h-4 text-emerald-400" />
-              Crear Nueva Cuenta Eco (Sin Confirmación por Correo)
+              Crear Nueva Cuenta Eco
             </h3>
             <p className="text-[11px] text-slate-400">
-              Únete y entra directo sin esperar correos de verificación
+              Únete a la red de reciclaje inteligente en Colombia
             </p>
           </div>
 
@@ -368,7 +424,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                 <input
                   type="text"
-                  placeholder="ej. Paulina Avendaño"
+                  placeholder="Tu nombre completo"
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
@@ -384,7 +440,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                 <input
                   type="email"
-                  placeholder="paulina@ejemplo.com"
+                  placeholder="correo@ejemplo.com"
                   value={regEmail}
                   onChange={(e) => setRegEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
@@ -463,6 +519,32 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           </button>
         </form>
       )}
+
+      {/* Bottom Pill with Another Scientific / Recycling Fact */}
+      <div className="grid grid-cols-2 gap-2.5">
+        {SCIENTIFIC_ECO_FACTS.slice(0, 2).map((item, idx) => {
+          const IconComp = item.icon;
+          return (
+            <div
+              key={idx}
+              className="bg-slate-900/70 border border-slate-800/90 rounded-2xl p-3 space-y-1"
+            >
+              <div className="flex items-center gap-1.5 text-emerald-400">
+                <IconComp className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="text-[9px] font-extrabold uppercase tracking-wider truncate">
+                  {item.tag.split('•')[1] || item.tag}
+                </span>
+              </div>
+              <p className="text-[11px] font-bold text-white leading-tight">
+                {item.title}
+              </p>
+              <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">
+                {item.fact}
+              </p>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };

@@ -8,7 +8,10 @@ import { ScanScreen } from '@/components/ecoscan-ui/ScanScreen';
 import { ResultScreen } from '@/components/ecoscan-ui/ResultScreen';
 import { HistoryScreen } from '@/components/ecoscan-ui/HistoryScreen';
 import { ProfileScreen } from '@/components/ecoscan-ui/ProfileScreen';
-import { AuthScreen } from '@/components/ecoscan-ui/AuthScreen';
+import {
+  AuthScreen,
+  SCIENTIFIC_ECO_FACTS,
+} from '@/components/ecoscan-ui/AuthScreen';
 import {
   TabType,
   WasteAnalysis,
@@ -19,7 +22,6 @@ import {
 import { buildMultiCriteriaAnalysis } from '@/lib/recycling-adapter';
 import { WasteConditionState } from '@/types/ecoscan';
 
-// Initial default seed history enriched with the Multi-Criteria Recycling Engine
 const INITIAL_SEED_HISTORY: HistoryItem[] = [
   {
     ...buildMultiCriteriaAnalysis({
@@ -199,16 +201,17 @@ export default function App() {
   >(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
+  // Por defecto al entrar por primera vez sin sesión abierta: isLoggedIn = false
   const [userAccount, setUserAccount] = useState<{
     name: string;
     email: string;
     city: string;
     isLoggedIn: boolean;
   }>({
-    name: 'Paulina Avendaño',
-    email: 'paulina.avendano@ecoscan.co',
+    name: '',
+    email: '',
     city: 'Bogotá, Colombia',
-    isLoggedIn: true,
+    isLoggedIn: false,
   });
 
   const [history, setHistory] = useState<HistoryItem[]>(INITIAL_SEED_HISTORY);
@@ -217,7 +220,7 @@ export default function App() {
   // Hydrate from localStorage on client mount
   useEffect(() => {
     try {
-      const savedAccount = localStorage.getItem('ecoScan_userAccount');
+      const savedAccount = localStorage.getItem('ecoScan_authSession_v2');
       if (savedAccount) {
         setUserAccount(JSON.parse(savedAccount));
       }
@@ -234,7 +237,10 @@ export default function App() {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem('ecoScan_userAccount', JSON.stringify(userAccount));
+      localStorage.setItem(
+        'ecoScan_authSession_v2',
+        JSON.stringify(userAccount)
+      );
     } catch (e) {
       console.error('Error saving user account:', e);
     }
@@ -323,7 +329,7 @@ export default function App() {
   });
 
   const userProfile: UserProfile = {
-    name: userAccount.name || 'Paulina Avendaño',
+    name: userAccount.name || 'Usuario EcoScan',
     email: userAccount.email,
     city: userAccount.city || 'Bogotá, Colombia',
     isLoggedIn: userAccount.isLoggedIn,
@@ -352,12 +358,12 @@ export default function App() {
 
   const handleLogout = () => {
     setUserAccount({
-      name: 'Invitado / Crear Cuenta',
+      name: '',
       email: '',
-      city: 'Colombia',
+      city: 'Bogotá, Colombia',
       isLoggedIn: false,
     });
-    setIsAuthModalOpen(true);
+    setIsAuthModalOpen(false);
   };
 
   const handleAnalysisComplete = (result: WasteAnalysis, imageUrl?: string) => {
@@ -366,7 +372,6 @@ export default function App() {
     setActiveTab('resultado');
   };
 
-  // Re-evalúa el estado físico del residuo en vivo usando el motor inteligente
   const handleReevaluateCondition = (newCondition: WasteConditionState) => {
     if (!activeAnalysis) return;
     const updated = buildMultiCriteriaAnalysis({
@@ -427,6 +432,101 @@ export default function App() {
     setActiveAnalysis(null);
   };
 
+  // Si aún no ha iniciado sesión ni se ha registrado, mostrar directamente la pantalla de bienvenida/registro rodeada de datos científicos y ambientales
+  if (!userAccount.isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-emerald-500 selection:text-slate-950 relative overflow-x-hidden flex items-center justify-center p-4 md:p-8">
+        {/* Ambient Gradient Background */}
+        <div
+          className="fixed inset-0 pointer-events-none opacity-60 z-0"
+          style={{
+            background:
+              'radial-gradient(circle at 0% 0%, #064e3b 0%, transparent 50%), radial-gradient(circle at 100% 100%, #1e3a8a 0%, transparent 50%)',
+          }}
+        />
+
+        <div className="relative z-10 w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          {/* Left Column (Desktop): Scientific & Environmental Insights */}
+          <div className="hidden lg:flex lg:col-span-4 flex-col space-y-4">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-black tracking-wider uppercase w-fit">
+              <span>🇨🇴 Ciencia y Sostenibilidad</span>
+            </div>
+            <h1 className="text-3xl font-black tracking-tight leading-tight text-white">
+              Datos científicos que transforman hábitos.
+            </h1>
+            <p className="text-slate-400 text-xs leading-relaxed">
+              Cada residuo tiene una huella química y energética distinta. Conoce por qué el estado de limpieza y la separación en la fuente son decisivos:
+            </p>
+
+            <div className="space-y-3 pt-1">
+              {SCIENTIFIC_ECO_FACTS.slice(0, 3).map((item, idx) => {
+                const IconComp = item.icon;
+                return (
+                  <div
+                    key={idx}
+                    className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800/90 space-y-1.5 shadow-lg"
+                  >
+                    <div className="flex items-center gap-2 text-emerald-400">
+                      <IconComp className="w-4 h-4" />
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider">
+                        {item.tag}
+                      </span>
+                    </div>
+                    <p className="text-xs font-bold text-white">{item.title}</p>
+                    <p className="text-[11px] text-slate-300 leading-relaxed">
+                      {item.fact}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Center Column: Auth Screen Card */}
+          <div className="lg:col-span-4 w-full max-w-md mx-auto">
+            <AuthScreen onLoginSuccess={handleLoginSuccess} />
+          </div>
+
+          {/* Right Column (Desktop): More Environmental & Circular Economy Facts */}
+          <div className="hidden lg:flex lg:col-span-4 flex-col space-y-4">
+            <div className="p-5 rounded-3xl bg-gradient-to-br from-emerald-950/60 to-slate-900 border border-emerald-500/30 space-y-3 shadow-xl">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-300 bg-teal-500/15 px-2.5 py-1 rounded-full border border-teal-500/30">
+                Economía Circular en Colombia
+              </span>
+              <h3 className="text-base font-black text-white leading-snug">
+                Más allá del color de la caneca
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                En Colombia se generan cerca de 12 millones de toneladas de residuos al año. Cuando entregas tus envases limpios y secos, dignificas la labor de más de 60.000 recicladores de oficio.
+              </p>
+            </div>
+
+            {SCIENTIFIC_ECO_FACTS.slice(3, 5).map((item, idx) => {
+              const IconComp = item.icon;
+              return (
+                <div
+                  key={idx}
+                  className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800/90 space-y-1.5 shadow-lg"
+                >
+                  <div className="flex items-center gap-2 text-teal-400">
+                    <IconComp className="w-4 h-4" />
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider">
+                      {item.tag}
+                    </span>
+                  </div>
+                  <p className="text-xs font-bold text-white">{item.title}</p>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    {item.fact}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-emerald-500 selection:text-slate-950 relative overflow-x-hidden">
       {/* Geometric Balance Ambient Gradient Background */}
@@ -450,7 +550,11 @@ export default function App() {
           </h1>
 
           <p className="text-slate-400 text-sm leading-relaxed">
-            Identifica tus residuos al instante con Inteligencia Artificial Gemini y evalúa su <strong>material, estado real de limpieza, economía circular y ruta Posconsumo</strong> (Resolución 2184 de 2019).
+            Identifica tus residuos al instante con Inteligencia Artificial Gemini y evalúa su{' '}
+            <strong>
+              material, estado real de limpieza, economía circular y ruta Posconsumo
+            </strong>{' '}
+            (Resolución 2184 de 2019).
           </p>
 
           <div className="grid grid-cols-2 gap-3 pt-2">
@@ -546,7 +650,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* Auth Screen Modal Overlay */}
+      {/* Auth Screen Modal Overlay (when changing account while logged in) */}
       {isAuthModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
           <div className="w-full max-w-md max-h-[90vh] overflow-y-auto scrollbar-none">
