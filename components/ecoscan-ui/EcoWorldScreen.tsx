@@ -353,6 +353,17 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
   const [heldWaste, setHeldWaste] = useState<ActiveWasteEntity | null>(null);
   const [lastResult, setLastResult] = useState<GameResultSummary | null>(null);
   const [isSubmittingResult, setIsSubmittingResult] = useState(false);
+  const [wokwiSyncEnabled, setWokwiSyncEnabled] = useState(false);
+
+  const toggleWokwiSync = () => {
+    if (wokwiSyncEnabled) {
+      wokwiBridge.disconnect();
+      setWokwiSyncEnabled(false);
+    } else {
+      wokwiBridge.startCloudSync('ECOSCAM');
+      setWokwiSyncEnabled(true);
+    }
+  };
 
   // Canvas & Game Loop Refs
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1351,6 +1362,31 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
               );
             })}
           </div>
+        </div>
+
+        {/* Tarjeta de Control Hardware Wokwi ESP32 (Opcional) */}
+        <div className="bg-slate-900/90 border border-cyan-500/30 rounded-3xl p-4 space-y-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Cpu className="w-4 h-4 text-cyan-400" />
+              <span className="text-xs font-black text-white">
+                Control Hardware Wokwi ESP32 (Opcional)
+              </span>
+            </div>
+            <button
+              onClick={toggleWokwiSync}
+              className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition-all ${
+                wokwiSyncEnabled
+                  ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                  : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30'
+              }`}
+            >
+              {wokwiSyncEnabled ? '● Escuchando ESP32 (Activo)' : 'Conectar Wokwi ESP32'}
+            </button>
+          </div>
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            Puedes jugar directamente con el <strong>teclado (WASD / Flechas)</strong> o <strong>pantalla táctil</strong>. Si deseas usar el circuito simulado en Wokwi (Potenciómetro + 2 Botones), activa el botón superior y dale Play a tu proyecto en Wokwi.
+          </p>
         </div>
       </div>
     );

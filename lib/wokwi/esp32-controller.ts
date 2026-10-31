@@ -39,6 +39,9 @@ export type WokwiInputListener = (packet: WokwiESP32InputPacket) => void;
 export class WokwiESP32ControllerBridge {
   private listeners: Set<WokwiInputListener> = new Set();
   private ws: WebSocket | null = null;
+  private pollIntervalId: ReturnType<typeof setInterval> | null = null;
+  private lastCloudSeq = -1;
+  private activeRoomCode = 'ECOSCAM';
   public connectionStatus: 'disconnected' | 'connecting' | 'connected' =
     'disconnected';
 
@@ -138,7 +141,52 @@ export class WokwiESP32ControllerBridge {
       this.ws.close();
       this.ws = null;
     }
+    if (this.pollIntervalId) {
+      clearInterval(this.pollIntervalId);
+      this.pollIntervalId = null;
+    }
     this.connectionStatus = 'disconnected';
+  }
+
+  /**
+   * Conecta al endpoint HTTP /api/wokwi para recibir las señales del ESP32 simulado en Wokwi.com
+   */
+  public startCloudSync(roomCode = 'ECOSCAM'): void {
+    if (typeof window === 'undefined') return;
+    this.disconnect();
+    this.activeRoomCode = roomCode.trim().toUpperCase() || 'ECOSCAM';
+    this.connectionStatus = 'connecting';
+
+    this.pollIntervalId = setInterval(async () => {
+      try {
+        const res = await fetch(
+          `/api/wokwi?room=${encodeURIComponent(this.activeRoomCode)}`,
+          { cache: 'no-store' }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.connected) {
+          this.connectionStatus = 'connected';
+          if (typeof data.seq === 'number' && data.seq !== this.lastCloudSeq) {
+            this.lastCloudSeq = data.seq;
+            const norm = WokwiESP32ControllerBridge.normalizePotentiometerADC(
+              data.potentiometerValue ?? 2048
+            );
+            this.emitInput({
+              potentiometerValue: data.potentiometerValue,
+              axisX: data.axisMode === 'vertical' ? 0 : norm,
+              axisY: data.axisMode === 'vertical' ? norm : 0,
+              buttonPrimaryPressed: Boolean(data.buttonPrimaryPressed),
+              buttonSecondaryPressed: Boolean(data.buttonSecondaryPressed),
+            });
+          }
+        } else {
+          this.connectionStatus = 'connecting';
+        }
+      } catch {
+        // Ignorar errores de red temporales
+      }
+    }, 200);
   }
 
   /**
@@ -151,6 +199,17 @@ export class WokwiESP32ControllerBridge {
       } catch {
         // Ignorar errores de envío si el socket se cerró
       }
+    }
+    if (this.pollIntervalId && this.connectionStatus === 'connected') {
+      fetch('/api/wokwi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room: this.activeRoomCode,
+          source: 'game_telemetry',
+          telemetry,
+        }),
+      }).catch(() => {});
     }
     if (typeof window !== 'undefined') {
       window.dispatchEvent(

@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "author": "ECOSCAM - Eco World Colombia",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot1",
+      "top": -40,
+      "left": -150,
+      "attrs": { "value": "2048" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnPrimary",
+      "top": 80,
+      "left": -150,
+      "attrs": { "color": "green", "label": "Recoger / Clasificar" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btnSecondary",
+      "top": 150,
+      "left": -150,
+      "attrs": { "color": "blue", "label": "Cambiar Eje X/Y" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "ledGreen",
+      "top": -40,
+      "left": 150,
+      "attrs": { "color": "limegreen", "label": "Acierto" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "ledRed",
+      "top": 20,
+      "left": 150,
+      "attrs": { "color": "red", "label": "Error" }
+    }
+  ],
+  "connections": [
+    [ "esp:TX0", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX0", "$serialMonitor:TX", "", [] ],
+    [ "pot1:GND", "esp:GND.1", "black", [ "v0" ] ],
+    [ "pot1:VCC", "esp:3V3", "red", [ "v0" ] ],
+    [ "pot1:SIG", "esp:D34", "green", [ "v0" ] ],
+    [ "btnPrimary:1.l", "esp:GND.1", "black", [ "v0" ] ],
+    [ "btnPrimary:2.r", "esp:D14", "green", [ "v0" ] ],
+    [ "btnSecondary:1.l", "esp:GND.1", "black", [ "v0" ] ],
+    [ "btnSecondary:2.r", "esp:D27", "blue", [ "v0" ] ],
+    [ "ledGreen:C", "esp:GND.2", "black", [ "v0" ] ],
+    [ "ledGreen:A", "esp:D26", "limegreen", [ "v0" ] ],
+    [ "ledRed:C", "esp:GND.2", "black", [ "v0" ] ],
+    [ "ledRed:A", "esp:D25", "red", [ "v0" ] ]
+  ],
+  "dependencies": {}
+}
