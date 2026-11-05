@@ -13,6 +13,11 @@ export const metadata: Metadata = {
   title: "EcoScan Colombia | Reciclaje Inteligente y Economía Circular",
   description:
     "Asistente inteligente para la identificación, evaluación por estado de limpieza, clasificación normativa (Resolución 2184 de 2019), economía circular y gestión posconsumo de residuos en Colombia.",
+  icons: {
+    icon: "/images/ecoscan-icon.png",
+    shortcut: "/images/ecoscan-icon.png",
+    apple: "/images/ecoscan-icon.png",
+  },
 };
 
 export default function RootLayout({

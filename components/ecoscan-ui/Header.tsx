@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Camera, Sparkles, Leaf, UserCheck } from 'lucide-react';
+import { Camera, Sparkles, UserCheck } from 'lucide-react';
 import { TabType, UserProfile } from './types';
 
 interface HeaderProps {
@@ -18,29 +18,21 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAuth,
 }) => {
   return (
-    <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-emerald-500/20 px-4 py-3 text-white">
-      <div className="max-w-md mx-auto flex items-center justify-between">
-        {/* Logo */}
+    <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-emerald-500/20 px-4 py-2.5 text-white">
+      <div className="w-full mx-auto flex items-center justify-between gap-2">
+        {/* Logo Oficial EcoScan */}
         <button
           onClick={() => setActiveTab('inicio')}
-          className="flex items-center gap-2 text-left focus:outline-none group"
+          className="flex items-center gap-2.5 text-left focus:outline-none group min-w-0"
         >
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-            <Leaf className="w-6 h-6 text-slate-950 stroke-[2.5]" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
-                EcoScan
-              </span>
-              <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">
-                COL 🇨🇴
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 font-medium leading-none">
-              Reciclaje Inteligente Colombia
-            </p>
-          </div>
+          <img
+            src="/images/ecoscan-logo.png"
+            alt="EcoScan Colombia"
+            className="h-9 sm:h-10 w-auto object-contain drop-shadow-[0_2px_10px_rgba(16,185,129,0.25)] group-hover:scale-[1.03] transition-transform"
+          />
+          <span className="hidden xs:inline-flex px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 shrink-0">
+            COL 🇨🇴
+          </span>
         </button>
 
         {/* Quick actions & stats */}

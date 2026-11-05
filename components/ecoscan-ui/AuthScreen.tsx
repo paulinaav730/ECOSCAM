@@ -278,14 +278,20 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         )}
 
         <div className="flex flex-col items-center text-center space-y-3">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-            <Leaf className="w-8 h-8 text-slate-950 stroke-[2.5]" />
+          <div className="w-20 h-20 rounded-2xl bg-slate-950/80 border border-emerald-500/30 p-2.5 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+            <img
+              src="/images/ecoscan-icon.png"
+              alt="EcoScan Icono"
+              className="w-full h-full object-contain"
+            />
           </div>
 
-          <div>
-            <h2 className="text-xl font-black text-white tracking-tight">
-              EcoScan Colombia
-            </h2>
+          <div className="flex flex-col items-center">
+            <img
+              src="/images/ecoscan-logo.png"
+              alt="EcoScan Colombia"
+              className="h-9 sm:h-10 w-auto object-contain mb-1"
+            />
             <p className="text-xs text-slate-300 font-medium max-w-xs mt-1">
               Guarda tu progreso de reciclaje, acumula Puntos Eco y desbloquea
               medallas en todo el país.

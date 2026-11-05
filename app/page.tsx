@@ -912,6 +912,14 @@ export default function App() {
         {/* Desktop Side Hero Panel (oculto cuando se abre ECO WORLD para darle pantalla completa al juego) */}
         {!isGameTab && (
           <div className="hidden md:flex flex-col flex-1 max-w-sm space-y-6 text-left py-8">
+            <div className="flex items-center gap-3">
+              <img
+                src="/images/ecoscan-logo.png"
+                alt="EcoScan Colombia"
+                className="h-12 w-auto object-contain drop-shadow-[0_4px_16px_rgba(16,185,129,0.25)]"
+              />
+            </div>
+
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-black tracking-wider uppercase w-fit">
               <span>🇨🇴 EcoScan AI + Eco World 2D</span>
             </div>
