@@ -201,61 +201,84 @@ Examina con máxima precisión la fotografía y clasifica el objeto o residuo re
       ? `${systemPrompt}\n\nPista proporcionada por el usuario: "${params.userHint}".`
       : systemPrompt;
 
+    const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
+      new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(
+          () => reject(new Error(`Timeout after ${ms}ms`)),
+          ms
+        );
+        promise
+          .then((val) => {
+            clearTimeout(timer);
+            resolve(val);
+          })
+          .catch((err) => {
+            clearTimeout(timer);
+            reject(err);
+          });
+      });
+
     let rawText: string | null | undefined = null;
 
     try {
-      const interaction = await client.interactions.create({
-        model: "gemini-3.8-flash",
-        store: false,
-        input: [
-          {
-            type: "image",
-            mime_type: params.mimeType,
-            data: cleanBase64,
-          },
-          {
+      const interaction = await withTimeout(
+        client.interactions.create({
+          model: "gemini-3.8-flash",
+          store: false,
+          input: [
+            {
+              type: "image",
+              mime_type: params.mimeType,
+              data: cleanBase64,
+            },
+            {
+              type: "text",
+              text: promptText,
+            },
+          ],
+          response_format: {
             type: "text",
-            text: promptText,
-          },
-        ],
-        response_format: {
-          type: "text",
-          mime_type: "application/json",
-          schema: VISION_RESPONSE_JSON_SCHEMA,
-        } as unknown as Record<string, unknown>,
-      });
+            mime_type: "application/json",
+            schema: VISION_RESPONSE_JSON_SCHEMA,
+          } as unknown as Record<string, unknown>,
+        }),
+        4200
+      );
       rawText = interaction.output_text;
     } catch (interactionErr) {
       console.warn(
         "[EcoScan AI Vision] Fallback to models.generateContent:",
         interactionErr instanceof Error ? interactionErr.message : interactionErr
       );
-      const genResult = await client.models.generateContent({
-        model: "gemini-3.8-flash",
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                inlineData: {
-                  mimeType: params.mimeType,
-                  data: cleanBase64,
+      const genResult = await withTimeout(
+        client.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: params.mimeType,
+                    data: cleanBase64,
+                  },
                 },
-              },
-              {
-                text: promptText,
-              },
-            ],
+                {
+                  text: promptText,
+                },
+              ],
+            },
+          ],
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: VISION_RESPONSE_JSON_SCHEMA as unknown as Record<
+              string,
+              unknown
+            >,
           },
-        ],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: VISION_RESPONSE_JSON_SCHEMA as unknown as Record<
-            string,
-            unknown
-          >,
-        },
-      });
+        }),
+        4200
+      );
       rawText = genResult.text;
     }
 

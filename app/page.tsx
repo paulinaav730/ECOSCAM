@@ -26,7 +26,7 @@ import {
 } from '@/components/ecoscan-ui/types';
 import { buildMultiCriteriaAnalysis } from '@/lib/recycling-adapter';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { WasteConditionState } from '@/types/ecoscan';
+import { WasteConditionState, MaterialType } from '@/types/ecoscan';
 
 const INITIAL_BADGES: Badge[] = [
   {
@@ -706,6 +706,61 @@ export default function App() {
     });
   };
 
+  const handleChangeMaterial = (
+    newMaterial: MaterialType,
+    newWasteName: string,
+    defaultCondition?: WasteConditionState,
+    requiresSpecial?: boolean
+  ) => {
+    if (!activeAnalysis) return;
+    const updated = buildMultiCriteriaAnalysis({
+      objectName: newWasteName,
+      primaryMaterial: newMaterial,
+      conditionState:
+        defaultCondition || activeAnalysis.conditionEvaluated || 'limpio_seco',
+      requiresSpecialManagement:
+        requiresSpecial ?? activeAnalysis.requiresSpecialManagement,
+      municipality: userProfile.city,
+      imageUrl: activeAnalysis.imageUrl,
+      aiConfidence: 0.95,
+      visualObservations: activeAnalysis.visualObservations,
+      scanFingerprint: activeAnalysis.scanFingerprint,
+    });
+    setActiveAnalysis(updated);
+
+    setHistory((prev) => {
+      if (prev.length === 0) return prev;
+      const targetFp = activeAnalysis.scanFingerprint;
+      const idx = prev.findIndex(
+        (h) =>
+          (targetFp && h.scanFingerprint === targetFp) ||
+          (activeScanRecordId && h.id === activeScanRecordId)
+      );
+      if (idx === -1) return prev;
+
+      const updatedItem: HistoryItem = {
+        ...prev[idx],
+        ...updated,
+        id: prev[idx].id,
+        scannedAt: prev[idx].scannedAt,
+        scanFingerprint: prev[idx].scanFingerprint,
+      };
+      const nextList = [...prev];
+      nextList[idx] = updatedItem;
+
+      fetch('/api/user-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_scan',
+          item: updatedItem,
+        }),
+      }).catch(() => {});
+
+      return nextList;
+    });
+  };
+
   const handleSaveToHistory = (analysis: WasteAnalysis) => {
     persistScanToHistoryAndSupabase(analysis);
   };
@@ -965,7 +1020,7 @@ export default function App() {
 
         {/* Contenedor Principal: Se expande a pantalla ancha tipo videojuego cuando activeTab === 'ecoworld' */}
         <div
-          className={`w-full flex flex-col relative shadow-2xl bg-slate-950 md:border md:border-slate-800 overflow-hidden transition-all duration-300 ${
+          className={`w-full flex flex-col relative shadow-2xl bg-slate-950 md:border md:border-slate-800 md:overflow-hidden transition-all duration-300 ${
             isGameTab
               ? 'max-w-5xl min-h-screen md:min-h-[92vh] md:rounded-[32px]'
               : 'max-w-md min-h-screen md:min-h-[760px] md:h-[820px] md:rounded-[40px]'
@@ -981,8 +1036,8 @@ export default function App() {
 
           {/* Main Screen Content View */}
           <main
-            className={`flex-1 overflow-y-auto scrollbar-none ${
-              isGameTab ? 'px-2 sm:px-5 pt-3' : 'px-4 pt-4'
+            className={`flex-1 overflow-y-auto scrollbar-none pt-16 pb-28 md:pt-4 md:pb-6 ${
+              isGameTab ? 'px-2 sm:px-5' : 'px-4'
             }`}
           >
             {activeTab === 'inicio' && (
@@ -1019,6 +1074,7 @@ export default function App() {
                 onSaveToHistory={handleSaveToHistory}
                 setActiveTab={setActiveTab}
                 onReevaluateCondition={handleReevaluateCondition}
+                onChangeMaterial={handleChangeMaterial}
               />
             )}
 

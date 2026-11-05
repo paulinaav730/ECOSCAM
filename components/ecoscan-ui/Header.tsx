@@ -18,7 +18,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAuth,
 }) => {
   return (
-    <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-emerald-500/20 px-4 py-2.5 text-white">
+    <header className="fixed top-0 left-0 right-0 z-40 md:sticky md:top-0 bg-slate-950 border-b border-emerald-500/30 shadow-lg px-4 py-2.5 text-white">
       <div className="w-full mx-auto flex items-center justify-between gap-2">
         {/* Logo Oficial EcoScan */}
         <button

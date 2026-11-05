@@ -19,15 +19,97 @@ import {
   Layers,
 } from 'lucide-react';
 import { WasteAnalysis, TabType } from './types';
-import { WasteConditionState } from '@/types/ecoscan';
+import { WasteConditionState, MaterialType } from '@/types/ecoscan';
 
 interface ResultScreenProps {
   analysis: WasteAnalysis | null;
   onSaveToHistory: (analysis: WasteAnalysis) => void;
   setActiveTab: (tab: TabType) => void;
   onReevaluateCondition?: (condition: WasteConditionState) => void;
+  onChangeMaterial?: (
+    newMaterial: MaterialType,
+    newWasteName: string,
+    defaultCondition?: WasteConditionState,
+    requiresSpecial?: boolean
+  ) => void;
   isSaved?: boolean;
 }
+
+const QUICK_MATERIAL_SWITCHER: {
+  id: string;
+  label: string;
+  emoji: string;
+  material: MaterialType;
+  wasteName: string;
+  condition?: WasteConditionState;
+  special?: boolean;
+}[] = [
+  {
+    id: 'pet',
+    label: 'Plástico',
+    emoji: '🧴',
+    material: 'plastico_pet',
+    wasteName: 'Botella o Envase de Plástico (PET)',
+    condition: 'limpio_seco',
+  },
+  {
+    id: 'carton',
+    label: 'Cartón',
+    emoji: '📦',
+    material: 'carton',
+    wasteName: 'Caja o Empaque de Cartón',
+    condition: 'limpio_seco',
+  },
+  {
+    id: 'papel',
+    label: 'Papel',
+    emoji: '📄',
+    material: 'papel',
+    wasteName: 'Hoja de Papel o Documento',
+    condition: 'limpio_seco',
+  },
+  {
+    id: 'vidrio',
+    label: 'Vidrio',
+    emoji: '🍾',
+    material: 'vidrio',
+    wasteName: 'Botella o Envase de Vidrio',
+    condition: 'limpio_seco',
+  },
+  {
+    id: 'metal',
+    label: 'Metal / Lata',
+    emoji: '🥫',
+    material: 'aluminio',
+    wasteName: 'Lata de Aluminio o Metal',
+    condition: 'limpio_seco',
+  },
+  {
+    id: 'organico',
+    label: 'Orgánico',
+    emoji: '🍌',
+    material: 'organico',
+    wasteName: 'Residuo Orgánico (Fruta / Vegetal)',
+    condition: 'organico_fresco',
+  },
+  {
+    id: 'no_aprov',
+    label: 'Servilleta / Sucio',
+    emoji: '🧻',
+    material: 'papel',
+    wasteName: 'Servilleta o Papel Contaminado',
+    condition: 'contaminado_comida',
+  },
+  {
+    id: 'posconsumo',
+    label: 'Pila / Posconsumo',
+    emoji: '🔋',
+    material: 'metal_quimico',
+    wasteName: 'Residuo Posconsumo Especial (Pila / RAEE)',
+    condition: 'limpio_seco',
+    special: true,
+  },
+];
 
 const LIVE_CONDITION_BUTTONS: {
   id: WasteConditionState;
@@ -43,6 +125,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
   analysis,
   setActiveTab,
   onReevaluateCondition,
+  onChangeMaterial,
   isSaved = true,
 }) => {
   const [checkedSteps, setCheckedSteps] = useState<Record<number, boolean>>({});
@@ -225,6 +308,49 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                     }`}
                   >
                     {btn.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Selector Rápido de Material en Vivo (si desea ajustar el material detectado con 1 toque) */}
+        {onChangeMaterial && (
+          <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3 space-y-2">
+            <p className="text-[11px] font-bold text-cyan-300 flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5" />
+              <span>¿El objeto es de otro material? Cámbialo con 1 toque:</span>
+            </p>
+            <div className="grid grid-cols-4 gap-1.5">
+              {QUICK_MATERIAL_SWITCHER.map((m) => {
+                const isSelected =
+                  analysis.primaryMaterial === m.material &&
+                  (m.condition
+                    ? analysis.conditionEvaluated === m.condition
+                    : true);
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() =>
+                      onChangeMaterial(
+                        m.material,
+                        m.wasteName,
+                        m.condition,
+                        m.special
+                      )
+                    }
+                    className={`p-1.5 rounded-xl border text-[10px] font-bold flex flex-col items-center gap-0.5 transition-all ${
+                      isSelected
+                        ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
+                        : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="text-sm">{m.emoji}</span>
+                    <span className="truncate w-full text-center">
+                      {m.label}
+                    </span>
                   </button>
                 );
               })}
