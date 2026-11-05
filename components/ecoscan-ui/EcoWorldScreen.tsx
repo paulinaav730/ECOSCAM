@@ -312,6 +312,7 @@ interface EcoWorldScreenProps {
 const BINS_LAYOUT: {
   id: GameBinType;
   label: string;
+  shortTitle: string;
   sublabel: string;
   shortRule: string;
   emoji: string;
@@ -325,11 +326,12 @@ const BINS_LAYOUT: {
   {
     id: 'blanco',
     label: 'CANECA BLANCA',
+    shortTitle: 'BLANCA',
     sublabel: 'Aprovechables',
     shortRule: 'Plástico, Cartón, Vidrio, Metal limpios',
     emoji: '⚪',
-    x: 130,
-    y: 80,
+    x: 84,
+    y: 66,
     fillColor: '#F8FAFC',
     strokeColor: '#38BDF8',
     textColor: '#0F172A',
@@ -339,11 +341,12 @@ const BINS_LAYOUT: {
   {
     id: 'verde',
     label: 'CANECA VERDE',
+    shortTitle: 'VERDE',
     sublabel: 'Orgánicos',
     shortRule: 'Frutas, Verduras, Cáscaras, Compost',
     emoji: '🟢',
-    x: 335,
-    y: 80,
+    x: 241,
+    y: 66,
     fillColor: '#16A34A',
     strokeColor: '#4ADE80',
     textColor: '#FFFFFF',
@@ -353,11 +356,12 @@ const BINS_LAYOUT: {
   {
     id: 'negro',
     label: 'CANECA NEGRA',
+    shortTitle: 'NEGRA',
     sublabel: 'No Aprovechables',
     shortRule: 'Servilletas, Grasa, Contaminados',
     emoji: '⚫',
-    x: 545,
-    y: 80,
+    x: 399,
+    y: 66,
     fillColor: '#1E293B',
     strokeColor: '#94A3B8',
     textColor: '#F8FAFC',
@@ -367,11 +371,12 @@ const BINS_LAYOUT: {
   {
     id: 'posconsumo',
     label: 'POSCONSUMO',
+    shortTitle: 'POSCONSUMO',
     sublabel: 'Especiales',
     shortRule: 'Pilas, Medicamentos, Bombillos, RAEE',
     emoji: '🟡',
-    x: 750,
-    y: 80,
+    x: 556,
+    y: 66,
     fillColor: '#D97706',
     strokeColor: '#FDE047',
     textColor: '#FFFFFF',
@@ -513,8 +518,8 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
     particlesRef.current = [];
 
     playerRef.current = {
-      x: 440,
-      y: 310,
+      x: 320,
+      y: 300,
       vx: 0,
       vy: 0,
       speed: 4.5,
@@ -527,15 +532,15 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
     const spawned: ActiveWasteEntity[] = [];
     for (let i = 0; i < ecosystem.targetItems; i++) {
       const tpl = WASTE_TEMPLATES[i % WASTE_TEMPLATES.length];
-      const col = i % 4;
-      const row = Math.floor(i / 4);
-      const x = 125 + col * 205 + ((i * 41) % 50) - 25;
-      const y = 215 + row * 125 + ((i * 31) % 45);
+      const col = i % 3;
+      const row = Math.floor(i / 3);
+      const x = 115 + col * 205 + ((i * 37) % 44) - 22;
+      const y = 195 + row * 95 + ((i * 29) % 36);
       spawned.push({
         ...tpl,
         id: `waste-${i}-${Date.now()}`,
-        x: Math.max(80, Math.min(800, x)),
-        y: Math.max(195, Math.min(455, y)),
+        x: Math.max(70, Math.min(570, x)),
+        y: Math.max(175, Math.min(445, y)),
         collected: false,
         bobOffset: i * 0.9,
       });
@@ -1001,34 +1006,34 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
         return `rgb(${r}, ${g}, ${b})`;
       };
 
-      // 3. DIBUJAR ESCENARIO GIGANTE 2D
+      // 3. DIBUJAR ESCENARIO ADAPTADO A CELULAR Y ESCRITORIO (640x520)
       const skyTop = lerpColor([42, 46, 55], [14, 116, 144], recoveryRatio);
       const skyBottom = lerpColor([68, 64, 60], [6, 95, 70], recoveryRatio);
-      const skyGrad = ctx.createLinearGradient(0, 0, 0, 145);
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, 128);
       skyGrad.addColorStop(0, skyTop);
       skyGrad.addColorStop(1, skyBottom);
       ctx.fillStyle = skyGrad;
-      ctx.fillRect(0, 0, W, 145);
+      ctx.fillRect(0, 0, W, 128);
 
       const grassTop = lerpColor([75, 70, 58], [16, 185, 129], recoveryRatio);
       const grassBottom = lerpColor([50, 47, 40], [5, 150, 105], recoveryRatio);
-      const grassGrad = ctx.createLinearGradient(0, 145, 0, H);
+      const grassGrad = ctx.createLinearGradient(0, 128, 0, H);
       grassGrad.addColorStop(0, grassTop);
       grassGrad.addColorStop(1, grassBottom);
       ctx.fillStyle = grassGrad;
-      ctx.fillRect(0, 145, W, H - 145);
+      ctx.fillRect(0, 128, W, H - 128);
 
-      // Senderos grandes del parque
+      // Senderos del parque
       ctx.fillStyle = lerpColor([92, 87, 79], [214, 211, 209], recoveryRatio);
-      ctx.fillRect(0, 136, W, 18);
+      ctx.fillRect(0, 120, W, 15);
       ctx.beginPath();
-      ctx.roundRect(405, 145, 70, H - 145, 10);
+      ctx.roundRect(292, 128, 56, H - 128, 10);
       ctx.fill();
 
-      // Laguna cristalina grande
+      // Laguna cristalina
       ctx.fillStyle = lerpColor([87, 83, 78], [45, 212, 191], recoveryRatio);
       ctx.beginPath();
-      ctx.ellipse(735, 430, 95, 52, 0, 0, Math.PI * 2);
+      ctx.ellipse(535, 438, 76, 44, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = lerpColor(
         [120, 113, 108],
@@ -1040,10 +1045,10 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
 
       // Árboles grandes que reverdecen
       const treePositions = [
-        { x: 68, y: 210 },
-        { x: 810, y: 215 },
-        { x: 75, y: 430 },
-        { x: 300, y: 450 },
+        { x: 56, y: 195 },
+        { x: 584, y: 198 },
+        { x: 64, y: 432 },
+        { x: 225, y: 452 },
       ];
       treePositions.forEach((t, idx) => {
         ctx.fillStyle = '#78350F';
@@ -1066,7 +1071,7 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
 
       // Flores que brotan
       if (recoveryRatio >= 0.2) {
-        const flowerCount = Math.floor(recoveryRatio * 24);
+        const flowerCount = Math.floor(recoveryRatio * 20);
         const flowerColors = [
           '#F472B6',
           '#FACC15',
@@ -1075,8 +1080,8 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
           '#A78BFA',
         ];
         for (let i = 0; i < flowerCount; i++) {
-          const fx = 55 + ((i * 127) % 760);
-          const fy = 180 + ((i * 83) % 305);
+          const fx = 45 + ((i * 107) % 550);
+          const fy = 165 + ((i * 83) % 315);
           ctx.fillStyle = flowerColors[i % flowerColors.length];
           ctx.beginPath();
           ctx.arc(fx, fy, 5.5, 0, Math.PI * 2);
@@ -1090,12 +1095,12 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
 
       // Mariposas animadas
       if (recoveryRatio >= 0.4) {
-        const butterflyCount = Math.floor((recoveryRatio - 0.2) * 10);
+        const butterflyCount = Math.floor((recoveryRatio - 0.2) * 8);
         for (let b = 0; b < butterflyCount; b++) {
           const bx =
-            140 + b * 110 + Math.sin(timestamp * 0.0025 + b * 1.7) * 55;
+            110 + b * 85 + Math.sin(timestamp * 0.0025 + b * 1.7) * 45;
           const by =
-            200 + (b % 3) * 80 + Math.cos(timestamp * 0.0035 + b) * 28;
+            185 + (b % 3) * 80 + Math.cos(timestamp * 0.0035 + b) * 28;
           const wingSpread = Math.abs(Math.sin(timestamp * 0.015 + b)) * 8 + 3;
 
           ctx.fillStyle = b % 2 === 0 ? '#FDE047' : '#38BDF8';
@@ -1106,7 +1111,7 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
         }
       }
 
-      // 4. DIBUJAR LOS 4 CONTENEDORES EN TAMAÑO GRANDE
+      // 4. DIBUJAR LOS 4 CONTENEDORES EN TAMAÑO GRANDE PARA CELULAR
       BINS_LAYOUT.forEach((bin) => {
         ctx.save();
         if (heldWasteRef.current) {
@@ -1118,24 +1123,24 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
         ctx.strokeStyle = bin.strokeColor;
         ctx.lineWidth = 3.5;
         ctx.beginPath();
-        ctx.roundRect(bin.x - 84, bin.y - 42, 168, 84, 16);
+        ctx.roundRect(bin.x - 72, bin.y - 40, 144, 78, 14);
         ctx.fill();
         ctx.stroke();
 
         ctx.fillStyle = bin.textColor;
         ctx.font = '900 15px Inter, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(bin.label, bin.x, bin.y - 10);
+        ctx.fillText(bin.shortTitle, bin.x, bin.y - 11);
         ctx.font = '700 12px Inter, sans-serif';
-        ctx.fillText(bin.sublabel, bin.x, bin.y + 10);
+        ctx.fillText(bin.sublabel, bin.x, bin.y + 8);
 
         ctx.font = '800 10px Inter, sans-serif';
         ctx.fillStyle = bin.id === 'blanco' ? '#0284C7' : '#A7F3D0';
-        ctx.fillText('▼ TOCA PARA ENTREGAR', bin.x, bin.y + 30);
+        ctx.fillText('▼ TOCAR AQUÍ', bin.x, bin.y + 26);
         ctx.restore();
       });
 
-      // 5. DIBUJAR LOS RESIDUOS INTERACTIVOS EN TAMAÑO GRANDE
+      // 5. DIBUJAR LOS RESIDUOS INTERACTIVOS EN TAMAÑO GRANDE PARA CELULAR
       const firstUncollectedId = wastesRef.current.find(
         (item) => !item.collected
       )?.id;
@@ -1149,14 +1154,14 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
         // Sombra
         ctx.fillStyle = 'rgba(2, 6, 23, 0.5)';
         ctx.beginPath();
-        ctx.ellipse(w.x, w.y + 22, 24, 9, 0, 0, Math.PI * 2);
+        ctx.ellipse(w.x, w.y + 24, 26, 10, 0, 0, Math.PI * 2);
         ctx.fill();
 
         // Anillo pulsante para el siguiente residuo sugerido
         if (isHighlighted) {
-          const pulse = 31 + Math.sin(timestamp * 0.008) * 5;
+          const pulse = 33 + Math.sin(timestamp * 0.008) * 5;
           ctx.strokeStyle = '#FACC15';
-          ctx.lineWidth = 3;
+          ctx.lineWidth = 3.5;
           ctx.beginPath();
           ctx.arc(w.x, w.y + bob, pulse, 0, Math.PI * 2);
           ctx.stroke();
@@ -1167,25 +1172,25 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
         ctx.strokeStyle = isHighlighted ? '#FACC15' : w.color;
         ctx.lineWidth = 3.5;
         ctx.beginPath();
-        ctx.arc(w.x, w.y + bob, 26, 0, Math.PI * 2);
+        ctx.arc(w.x, w.y + bob, 28, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
 
         // Emoji grande
-        ctx.font = '28px sans-serif';
+        ctx.font = '30px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(w.emoji, w.x, w.y + bob + 2);
 
         // Etiqueta legible con pastilla oscura
-        ctx.fillStyle = 'rgba(2, 6, 23, 0.85)';
+        ctx.fillStyle = 'rgba(2, 6, 23, 0.9)';
         ctx.beginPath();
-        ctx.roundRect(w.x - 48, w.y + 26, 96, 20, 6);
+        ctx.roundRect(w.x - 52, w.y + 28, 104, 22, 7);
         ctx.fill();
 
-        ctx.font = '800 11px Inter, sans-serif';
+        ctx.font = '800 12px Inter, sans-serif';
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillText(w.shortLabel, w.x, w.y + 37);
+        ctx.fillText(w.shortLabel, w.x, w.y + 40);
       });
 
       // 6. DIBUJAR EL PERSONAJE (ECOGUARDIÁN) EN TAMAÑO GRANDE
@@ -1313,8 +1318,8 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
     // 1. ¿Tocó directamente una de las 4 canecas superiores?
     for (const bin of BINS_LAYOUT) {
       if (
-        Math.abs(clickX - bin.x) <= 88 &&
-        Math.abs(clickY - bin.y) <= 48
+        Math.abs(clickX - bin.x) <= 76 &&
+        Math.abs(clickY - bin.y) <= 46
       ) {
         evaluateBinDelivery(bin.id);
         return;
@@ -1324,7 +1329,7 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
     // 2. ¿Tocó directamente un residuo del escenario?
     if (!heldWasteRef.current) {
       for (const w of wastesRef.current) {
-        if (!w.collected && Math.hypot(clickX - w.x, clickY - w.y) <= 44) {
+        if (!w.collected && Math.hypot(clickX - w.x, clickY - w.y) <= 46) {
           playerRef.current.x = w.x;
           playerRef.current.y = w.y;
           w.collected = true;
@@ -1353,6 +1358,20 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
 
     playerRef.current.targetX = clickX;
     playerRef.current.targetY = clickY;
+  };
+
+  // Permitir deslizar el dedo en la pantalla del celular para mover al personaje continuamente
+  const handleCanvasPointerMove = (
+    e: React.PointerEvent<HTMLCanvasElement>
+  ) => {
+    if (e.buttons === 0 && e.pointerType === 'mouse') return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    playerRef.current.targetX = (e.clientX - rect.left) * scaleX;
+    playerRef.current.targetY = (e.clientY - rect.top) * scaleY;
   };
 
   const currentRecoveryInGame = Math.min(
@@ -1782,84 +1801,84 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
   }
 
   // ============================================================================
-  // VISTA C y D: EXPERIENCIA DE JUEGO MÓVIL GIGANTE E INTERACTIVA
+  // VISTA C y D: EXPERIENCIA DE JUEGO MÓVIL GIGANTE E INTERACTIVA (ADAPTADA A CELULAR)
   // ============================================================================
   if (viewMode === 'play') {
     const activeTargetWaste = heldWaste || nextWastePreview;
 
     return (
-      <div className="space-y-3.5 pb-24 animate-fadeIn select-none">
-        {/* 1. BARRA SUPERIOR HUD ESTILO JUEGO MÓVIL (ELEMENTOS GRANDES Y CLAROS) */}
-        <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl p-4 space-y-3 shadow-xl">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
+      <div className="space-y-2.5 sm:space-y-3.5 pb-24 animate-fadeIn select-none">
+        {/* 1. BARRA SUPERIOR HUD COMPACTA PARA CELULAR Y ESCRITORIO */}
+        <div className="bg-slate-900 border-2 border-slate-800 rounded-2xl sm:rounded-3xl p-3 sm:p-4 space-y-2 shadow-xl">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => setViewMode('map')}
-                className="p-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white border border-slate-700"
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white border border-slate-700"
                 title="Volver al mapa"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               <div>
-                <h3 className="text-sm sm:text-lg font-black text-white leading-tight">
+                <h3 className="text-xs sm:text-base font-black text-white leading-tight">
                   {activeEcosystem.name}
                 </h3>
-                <p className="text-xs text-emerald-400 font-bold">
-                  Meta: {activeEcosystem.targetItems} residuos clasificados
+                <p className="text-[11px] text-emerald-400 font-bold">
+                  Meta: {activeEcosystem.targetItems} residuos
                 </p>
               </div>
             </div>
 
-            {/* Indicadores Grandes de Aciertos, Errores, Puntaje y Tiempo */}
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="px-3.5 py-2 rounded-2xl bg-emerald-950/90 border border-emerald-500/40 text-xs sm:text-sm font-black text-emerald-300">
-                ✓ Aciertos: {correctCount}/{activeEcosystem.targetItems}
+            {/* Indicadores Claros de Aciertos, Errores, Puntaje y Tiempo */}
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <div className="px-2.5 py-1.5 rounded-xl bg-emerald-950/90 border border-emerald-500/40 text-xs font-black text-emerald-300">
+                ✓ {correctCount}/{activeEcosystem.targetItems}
               </div>
-              <div className="px-3.5 py-2 rounded-2xl bg-rose-950/80 border border-rose-500/40 text-xs sm:text-sm font-black text-rose-300">
-                ✕ Errores: {mistakesCount}
+              <div className="px-2.5 py-1.5 rounded-xl bg-rose-950/80 border border-rose-500/40 text-xs font-black text-rose-300">
+                ✕ {mistakesCount}
               </div>
               {streakCount >= 2 && (
-                <div className="px-3 py-2 rounded-2xl bg-amber-500/20 border border-amber-400 text-xs sm:text-sm font-black text-amber-300 flex items-center gap-1 animate-bounce">
-                  <Flame className="w-4 h-4 fill-amber-400" />
+                <div className="px-2.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-400 text-xs font-black text-amber-300 flex items-center gap-1 animate-bounce">
+                  <Flame className="w-3.5 h-3.5 fill-amber-400" />
                   <span>x{streakCount}</span>
                 </div>
               )}
-              <div className="px-3.5 py-2 rounded-2xl bg-slate-950 border border-yellow-500/40 text-xs sm:text-sm font-black text-yellow-300">
-                ⭐ {score} pts
+              <div className="px-2.5 py-1.5 rounded-xl bg-slate-950 border border-yellow-500/40 text-xs font-black text-yellow-300">
+                ⭐ {score}
               </div>
               <div
-                className={`px-3.5 py-2 rounded-2xl border text-xs sm:text-sm font-black flex items-center gap-1.5 ${
+                className={`px-2.5 py-1.5 rounded-xl border text-xs font-black flex items-center gap-1 ${
                   timeLeft <= 15
                     ? 'bg-red-950 border-red-500 text-red-200 animate-pulse'
                     : 'bg-slate-950 border-cyan-500/40 text-cyan-300'
                 }`}
               >
-                <Clock className="w-4 h-4" />
+                <Clock className="w-3.5 h-3.5" />
                 <span>{timeLeft}s</span>
               </div>
               <button
                 onClick={() => setIsPaused((p) => !p)}
-                className="p-2.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30"
+                className="p-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30"
                 title={isPaused ? 'Reanudar' : 'Pausar'}
               >
                 {isPaused ? (
-                  <Play className="w-5 h-5" />
+                  <Play className="w-4 h-4" />
                 ) : (
-                  <Pause className="w-5 h-5" />
+                  <Pause className="w-4 h-4" />
                 )}
               </button>
             </div>
           </div>
 
-          {/* Barra Grande de Recuperación del Ecosistema en Vivo */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-xs font-extrabold">
+          {/* Barra de Recuperación del Ecosistema en Vivo */}
+          <div className="space-y-1">
+            <div className="flex justify-between text-[11px] font-extrabold">
               <span className="text-slate-200">
-                🌱 Transformación Ambiental del Ecosistema en Vivo
+                🌱 Recuperación del Ecosistema en Vivo
               </span>
               <span className="text-emerald-400">{currentRecoveryInGame}%</span>
             </div>
-            <div className="w-full h-3.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+            <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
               <div
                 className="h-full bg-gradient-to-r from-amber-500 via-emerald-500 to-cyan-400 rounded-full transition-all duration-300"
                 style={{ width: `${currentRecoveryInGame}%` }}
@@ -1868,134 +1887,64 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
           </div>
         </div>
 
-        {/* 2. BANNER ANIMADO DE RETROALIMENTACIÓN VISUAL AL RESPONDER */}
-        {liveFeedbackBanner && (
-          <div
-            className={`p-4 rounded-2xl border-2 flex items-center justify-between gap-3 transition-all animate-fadeIn shadow-lg ${
-              liveFeedbackBanner.type === 'correct'
-                ? 'bg-emerald-950/90 border-emerald-400 text-emerald-200'
-                : liveFeedbackBanner.type === 'mistake'
-                ? 'bg-rose-950/90 border-rose-400 text-rose-200'
-                : 'bg-cyan-950/90 border-cyan-400 text-cyan-200'
-            }`}
-          >
-            <div className="space-y-0.5">
-              <p className="text-sm sm:text-base font-black text-white">
-                {liveFeedbackBanner.title}
-              </p>
-              <p className="text-xs sm:text-sm font-semibold opacity-95">
-                {liveFeedbackBanner.subtitle}
-              </p>
-            </div>
-            <span className="text-2xl flex-shrink-0">
-              {liveFeedbackBanner.type === 'correct'
-                ? '🎉'
-                : liveFeedbackBanner.type === 'mistake'
-                ? '⚠️'
-                : '🧤'}
-            </span>
-          </div>
-        )}
-
-        {/* 3. TARJETA INTERACTIVA GIGANTE DEL RESIDUO ACTUAL + 4 BOTONES GIGANTES DE CANECAS (ESTILO JUEGO DE CELULAR) */}
-        <div className="bg-slate-900 border-2 border-emerald-500/40 rounded-3xl p-4 sm:p-5 space-y-4 shadow-2xl">
-          {activeTargetWaste ? (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-950 border border-slate-800 rounded-2xl p-4">
-              <div className="flex items-center gap-3.5 text-center sm:text-left">
-                <div className="w-16 h-16 rounded-2xl bg-slate-900 border-2 border-emerald-400/50 flex items-center justify-center text-4xl flex-shrink-0 shadow-md">
-                  {activeTargetWaste.emoji}
-                </div>
-                <div>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    {heldWaste ? 'En tus manos ahora' : 'Siguiente residuo en el parque'}
-                  </span>
-                  <h4 className="text-base sm:text-xl font-black text-white mt-1">
-                    {activeTargetWaste.name}
-                  </h4>
-                  <p className="text-xs sm:text-sm text-cyan-300 font-semibold">
-                    {activeTargetWaste.materialDesc}
-                  </p>
-                </div>
-              </div>
-
-              {!heldWaste && (
-                <button
-                  type="button"
-                  onClick={handleQuickPickupNextWaste}
-                  className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95"
-                >
-                  <Hand className="w-4 h-4" />
-                  <span>Recoger Residuo</span>
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-2 text-sm font-black text-emerald-400">
-              ¡Todos los residuos fueron clasificados!
-            </div>
-          )}
-
-          {/* 4 BOTONES GIGANTES DE CONTENEDORES COLOMBIANOS */}
-          <div>
-            <p className="text-xs sm:text-sm font-black text-slate-300 mb-2.5 text-center sm:text-left">
-              👇 Toca el contenedor correcto para clasificar el residuo al instante:
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-              {BINS_LAYOUT.map((bin) => (
-                <button
-                  key={bin.id}
-                  type="button"
-                  onClick={() => evaluateBinDelivery(bin.id)}
-                  className={`${bin.buttonBg} rounded-2xl p-3.5 sm:p-4 text-left flex flex-col justify-between min-h-[96px] sm:min-h-[112px] transition-all hover:scale-[1.02] active:scale-95`}
-                >
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-xl sm:text-2xl">{bin.emoji}</span>
-                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-black/20">
-                      {bin.sublabel}
-                    </span>
-                  </div>
-                  <div className="mt-2">
-                    <p className="text-xs sm:text-sm font-black leading-tight">
-                      {bin.label}
-                    </p>
-                    <p className="text-[10px] sm:text-[11px] opacity-90 font-semibold leading-tight mt-0.5">
-                      {bin.shortRule}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* 4. ESCENARIO 2D GIGANTE E INTERACTIVO */}
-        <div className="relative rounded-3xl overflow-hidden border-2 border-emerald-500/50 shadow-2xl bg-slate-950">
+        {/* 2. ESCENARIO 2D ADAPTADO A PANTALLA DE CELULAR (640x520 SIN RECORTE LATERAL) */}
+        <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border-2 border-emerald-500/50 shadow-2xl bg-slate-950">
           <canvas
             ref={canvasRef}
-            width={880}
+            width={640}
             height={520}
             onPointerDown={handleCanvasPointerDown}
-            className="w-full min-h-[300px] sm:min-h-[420px] md:min-h-[480px] h-auto block touch-none cursor-pointer object-cover"
+            onPointerMove={handleCanvasPointerMove}
+            className="w-full aspect-[640/520] h-auto block touch-none cursor-pointer"
           />
+
+          {/* Banner flotante sobre la base del canvas al acertar o fallar */}
+          {liveFeedbackBanner && (
+            <div
+              className={`mx-2 mb-2 p-2.5 sm:p-3.5 rounded-2xl border-2 flex items-center justify-between gap-2 transition-all animate-fadeIn shadow-lg ${
+                liveFeedbackBanner.type === 'correct'
+                  ? 'bg-emerald-950/95 border-emerald-400 text-emerald-200'
+                  : liveFeedbackBanner.type === 'mistake'
+                  ? 'bg-rose-950/95 border-rose-400 text-rose-200'
+                  : 'bg-cyan-950/95 border-cyan-400 text-cyan-200'
+              }`}
+            >
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-black text-white truncate">
+                  {liveFeedbackBanner.title}
+                </p>
+                <p className="text-[11px] sm:text-xs font-semibold opacity-95 line-clamp-2">
+                  {liveFeedbackBanner.subtitle}
+                </p>
+              </div>
+              <span className="text-xl flex-shrink-0">
+                {liveFeedbackBanner.type === 'correct'
+                  ? '🎉'
+                  : liveFeedbackBanner.type === 'mistake'
+                  ? '⚠️'
+                  : '🧤'}
+              </span>
+            </div>
+          )}
 
           {/* Modal de Pausa */}
           {isPaused && (
             <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center space-y-4">
               <h3 className="text-2xl font-black text-white">Juego en Pausa</h3>
               <p className="text-sm text-slate-300 max-w-sm">
-                Toca cualquiera de los 4 contenedores gigantes o camina con tu personaje por el parque para clasificar cada residuo.
+                Toca cualquiera de los 4 contenedores gigantes o desliza tu dedo por el parque para clasificar cada residuo.
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={() => setIsPaused(false)}
-                  className="px-6 py-3.5 rounded-2xl bg-emerald-500 text-slate-950 font-black text-sm flex items-center gap-2"
+                  className="px-5 py-3 rounded-2xl bg-emerald-500 text-slate-950 font-black text-sm flex items-center gap-2"
                 >
                   <Play className="w-4 h-4 fill-slate-950" />
-                  Continuar Partida
+                  Continuar
                 </button>
                 <button
                   onClick={() => startMission(activeEcosystem)}
-                  className="px-5 py-3.5 rounded-2xl bg-slate-800 text-white font-bold text-sm flex items-center gap-2"
+                  className="px-4 py-3 rounded-2xl bg-slate-800 text-white font-bold text-sm flex items-center gap-2"
                 >
                   <RotateCcw className="w-4 h-4" />
                   Reiniciar
@@ -2005,39 +1954,110 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
           )}
         </div>
 
-        {/* 5. CONTROLES DIRECCIONALES GRANDES PARA MOVER AL PERSONAJE EN EL ESCENARIO */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+        {/* 3. PANEL TÁCTIL MÓVIL: RESIDUO ACTIVO + 4 BOTONES GRANDES DE CANECAS PARA EL PULGAR */}
+        <div className="bg-slate-900 border-2 border-emerald-500/40 rounded-2xl sm:rounded-3xl p-3 sm:p-5 space-y-3 shadow-2xl">
+          {activeTargetWaste ? (
+            <div className="flex items-center justify-between gap-2.5 bg-slate-950 border border-slate-800 rounded-2xl p-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-slate-900 border-2 border-emerald-400/50 flex items-center justify-center text-2xl sm:text-3xl flex-shrink-0 shadow-md">
+                  {activeTargetWaste.emoji}
+                </div>
+                <div className="min-w-0">
+                  <span className="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    {heldWaste ? 'En tus manos ahora' : 'Siguiente residuo'}
+                  </span>
+                  <h4 className="text-sm sm:text-lg font-black text-white truncate mt-0.5">
+                    {activeTargetWaste.name}
+                  </h4>
+                  <p className="text-[11px] sm:text-xs text-cyan-300 font-semibold truncate">
+                    {activeTargetWaste.materialDesc}
+                  </p>
+                </div>
+              </div>
+
+              {!heldWaste && (
+                <button
+                  type="button"
+                  onClick={handleQuickPickupNextWaste}
+                  className="px-3.5 py-2.5 sm:px-5 sm:py-3 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-1.5 flex-shrink-0 shadow-lg active:scale-95"
+                >
+                  <Hand className="w-4 h-4" />
+                  <span>Recoger</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-2 text-sm font-black text-emerald-400">
+              ¡Todos los residuos fueron clasificados!
+            </div>
+          )}
+
+          {/* 4 BOTONES TÁCTILES DE CONTENEDORES COLOMBIANOS */}
+          <div>
+            <p className="text-[11px] sm:text-xs font-black text-slate-300 mb-2 text-center sm:text-left">
+              👇 Toca la caneca correcta para depositar el residuo al instante:
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+              {BINS_LAYOUT.map((bin) => (
+                <button
+                  key={bin.id}
+                  type="button"
+                  onClick={() => evaluateBinDelivery(bin.id)}
+                  className={`${bin.buttonBg} rounded-2xl p-3 sm:p-4 text-left flex flex-col justify-between min-h-[82px] sm:min-h-[104px] transition-all active:scale-95`}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-lg sm:text-2xl">{bin.emoji}</span>
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-black/20">
+                      {bin.sublabel}
+                    </span>
+                  </div>
+                  <div className="mt-1.5">
+                    <p className="text-xs sm:text-sm font-black leading-tight">
+                      {bin.label}
+                    </p>
+                    <p className="text-[10px] sm:text-[11px] opacity-90 font-semibold leading-tight mt-0.5 line-clamp-2">
+                      {bin.shortRule}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 4. CONTROLES DIRECCIONALES TÁCTILES (D-PAD) PARA CELULAR */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               type="button"
               onPointerDown={() => (touchDirRef.current.dx = -1)}
               onPointerUp={() => (touchDirRef.current.dx = 0)}
               onPointerLeave={() => (touchDirRef.current.dx = 0)}
-              className="w-14 h-14 rounded-2xl bg-slate-950 active:bg-emerald-500 active:text-slate-950 border-2 border-slate-700 flex items-center justify-center text-white shadow-md"
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-slate-950 active:bg-emerald-500 active:text-slate-950 border-2 border-slate-700 flex items-center justify-center text-white shadow-md"
               aria-label="Mover a la izquierda"
             >
-              <ArrowLeft className="w-6 h-6" />
+              <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
               <button
                 type="button"
                 onPointerDown={() => (touchDirRef.current.dy = -1)}
                 onPointerUp={() => (touchDirRef.current.dy = 0)}
                 onPointerLeave={() => (touchDirRef.current.dy = 0)}
-                className="w-14 h-14 rounded-2xl bg-slate-950 active:bg-emerald-500 active:text-slate-950 border-2 border-slate-700 flex items-center justify-center text-white shadow-md"
+                className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-slate-950 active:bg-emerald-500 active:text-slate-950 border-2 border-slate-700 flex items-center justify-center text-white shadow-md"
                 aria-label="Mover arriba"
               >
-                <ArrowUp className="w-6 h-6" />
+                <ArrowUp className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
               <button
                 type="button"
                 onPointerDown={() => (touchDirRef.current.dy = 1)}
                 onPointerUp={() => (touchDirRef.current.dy = 0)}
                 onPointerLeave={() => (touchDirRef.current.dy = 0)}
-                className="w-14 h-14 rounded-2xl bg-slate-950 active:bg-emerald-500 active:text-slate-950 border-2 border-slate-700 flex items-center justify-center text-white shadow-md"
+                className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-slate-950 active:bg-emerald-500 active:text-slate-950 border-2 border-slate-700 flex items-center justify-center text-white shadow-md"
                 aria-label="Mover abajo"
               >
-                <ArrowDown className="w-6 h-6" />
+                <ArrowDown className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
             <button
@@ -2045,19 +2065,19 @@ export const EcoWorldScreen: React.FC<EcoWorldScreenProps> = ({
               onPointerDown={() => (touchDirRef.current.dx = 1)}
               onPointerUp={() => (touchDirRef.current.dx = 0)}
               onPointerLeave={() => (touchDirRef.current.dx = 0)}
-              className="w-14 h-14 rounded-2xl bg-slate-950 active:bg-emerald-500 active:text-slate-950 border-2 border-slate-700 flex items-center justify-center text-white shadow-md"
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-slate-950 active:bg-emerald-500 active:text-slate-950 border-2 border-slate-700 flex items-center justify-center text-white shadow-md"
               aria-label="Mover a la derecha"
             >
-              <ArrowRight className="w-6 h-6" />
+              <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           </div>
 
-          <div className="flex-1 min-w-[200px] text-right space-y-1">
-            <p className="text-xs sm:text-sm font-black text-white">
-              Modo Híbrido: Táctil Directo + Movimiento 2D
+          <div className="flex-1 text-right space-y-0.5">
+            <p className="text-xs font-black text-white">
+              Control Móvil Total 📱
             </p>
-            <p className="text-xs text-slate-400">
-              Toca los botones gigantes de las canecas, toca sobre el escenario o usa las flechas / Wokwi ESP32.
+            <p className="text-[11px] text-slate-400 leading-snug">
+              Desliza tu dedo sobre el mapa, toca un residuo o usa las canecas y flechas táctiles.
             </p>
           </div>
         </div>
