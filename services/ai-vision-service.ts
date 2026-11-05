@@ -7,12 +7,30 @@ export function getGeminiApiKey(): string | undefined {
     process.env.GOOGLE_API_KEY,
     process.env.NEXT_PUBLIC_GEMINI_API_KEY,
   ];
+
+  const isDummyPlaceholder = (k: string) => {
+    const lower = k.toLowerCase().trim();
+    return (
+      lower.includes("my_gemini") ||
+      lower.includes("tu_gemini") ||
+      lower.includes("your_api") ||
+      lower.includes("placeholder") ||
+      lower.includes("example") ||
+      lower.includes("api_key_here") ||
+      lower === "tu_gemini_api_key_privada_aqui"
+    );
+  };
+
+  // First pass: try candidates that are NOT dummy placeholders
   for (const key of candidates) {
-    if (
-      key &&
-      key.trim().length > 15 &&
-      key.trim() !== "tu_gemini_api_key_privada_aqui"
-    ) {
+    if (key && key.trim().length > 15 && !isDummyPlaceholder(key)) {
+      return key.trim();
+    }
+  }
+
+  // Second pass: fallback
+  for (const key of candidates) {
+    if (key && key.trim().length > 15) {
       return key.trim();
     }
   }
@@ -178,11 +196,17 @@ export async function analyzeWasteImageWithGemini(params: {
 
     const client = new GoogleGenAI({
       apiKey,
+      httpOptions: {
+        headers: {
+          "User-Agent": "aistudio-build",
+        },
+      },
     });
 
     const systemPrompt = `Eres el sistema experto de visión artificial de EcoScan Colombia (Resolución 2184 de 2019 y Programas Posconsumo).
 Examina con máxima precisión la fotografía y clasifica el objeto o residuo real que aparece en ella:
 1. IDENTIFICACIÓN PRECISA DE MATERIALES:
+   - Si es una pila, batería (AA, AAA, 9V, botón, etc.), acumulador: usa probableObjectName="Pila alcalina (AA / AAA / botón)", primaryMaterial="metal_quimico", detectedCondition="limpio_seco", suggestedCategory="posconsumo_especial". ¡NUNCA digas que es una botella ni plástico!
    - Si es una fruta, cáscara (ej. banano, naranja, huevo), verdura, restos de comida cruda o poda: usa primaryMaterial="organico", detectedCondition="organico_fresco", suggestedCategory="organico_aprovechable".
    - Si es una caja de cartón, empaque de cartón o cubeta de huevos: usa primaryMaterial="carton". Si tiene grasa (como caja de pizza usada), usa detectedCondition="parcialmente_contaminado" o "contaminado_grasa".
    - Si es una hoja de papel, cuaderno, factura o periódico limpio: usa primaryMaterial="papel", detectedCondition="limpio_seco".
@@ -191,7 +215,10 @@ Examina con máxima precisión la fotografía y clasifica el objeto o residuo re
    - Si es una caja de leche o jugo tipo Tetra Pak: usa primaryMaterial="multicapa".
    - Si es una botella o frasco de vidrio: usa primaryMaterial="vidrio".
    - Si es una lata de bebida (aluminio) o lata de conserva/atún (hojalata): usa primaryMaterial="aluminio" o "metal".
-   - Si es una pila/batería ("metal_quimico"), medicamento/pastilla/blíster ("farmaceutico"), celular/cable/computador ("raee"), bombillo ("iluminacion_raee") o botella con aceite de cocina usado ("aceite_vegetal"): usa suggestedCategory="posconsumo_especial".
+   - Si es un medicamento/pastilla/blíster: usa primaryMaterial="farmaceutico", suggestedCategory="posconsumo_especial".
+   - Si es un celular/cable/computador/aparato: usa primaryMaterial="raee", suggestedCategory="posconsumo_especial".
+   - Si es un bombillo o luminaria: usa primaryMaterial="iluminacion_raee", suggestedCategory="posconsumo_especial".
+   - Si es una botella o frasco con aceite de cocina usado: usa primaryMaterial="aceite_vegetal", suggestedCategory="posconsumo_especial".
 2. NO INVENTAR IDENTIFICACIONES:
    - NUNCA digas por defecto que es una botella de plástico si no ves claramente una botella de plástico.
    - Si la foto está muy borrosa, totalmente oscura, muestra solo un rostro/persona/pared sin ningún residuo identificable, asigna probableObjectName="Imagen no concluyente — Objeto no distinguible", primaryMaterial="compuesto_desconocido", detectedCondition="desconocido", suggestedCategory="requiere_verificacion" y confidenceScore menor a 0.40.
@@ -220,39 +247,11 @@ Examina con máxima precisión la fotografía y clasifica el objeto o residuo re
 
     let rawText: string | null | undefined = null;
 
+    let lastErrorMessage = "";
     try {
-      const interaction = await withTimeout(
-        client.interactions.create({
-          model: "gemini-3.8-flash",
-          store: false,
-          input: [
-            {
-              type: "image",
-              mime_type: params.mimeType,
-              data: cleanBase64,
-            },
-            {
-              type: "text",
-              text: promptText,
-            },
-          ],
-          response_format: {
-            type: "text",
-            mime_type: "application/json",
-            schema: VISION_RESPONSE_JSON_SCHEMA,
-          } as unknown as Record<string, unknown>,
-        }),
-        4200
-      );
-      rawText = interaction.output_text;
-    } catch (interactionErr) {
-      console.warn(
-        "[EcoScan AI Vision] Fallback to models.generateContent:",
-        interactionErr instanceof Error ? interactionErr.message : interactionErr
-      );
       const genResult = await withTimeout(
         client.models.generateContent({
-          model: "gemini-2.5-flash",
+          model: "gemini-3.1-flash-lite",
           contents: [
             {
               role: "user",
@@ -277,16 +276,59 @@ Examina con máxima precisión la fotografía y clasifica el objeto o residuo re
             >,
           },
         }),
-        4200
+        10000
       );
       rawText = genResult.text;
+    } catch (genErr) {
+      lastErrorMessage = genErr instanceof Error ? genErr.message : String(genErr);
+      console.warn(
+        "[EcoScan AI Vision] Retrying with gemini-3.8-flash:",
+        lastErrorMessage
+      );
+      try {
+        const fallbackResult = await withTimeout(
+          client.models.generateContent({
+            model: "gemini-3.8-flash",
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    inlineData: {
+                      mimeType: params.mimeType,
+                      data: cleanBase64,
+                    },
+                  },
+                  {
+                    text: promptText,
+                  },
+                ],
+              },
+            ],
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: VISION_RESPONSE_JSON_SCHEMA as unknown as Record<
+                string,
+                unknown
+              >,
+            },
+          }),
+          10000
+        );
+        rawText = fallbackResult.text;
+      } catch (fallbackErr) {
+        lastErrorMessage = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+        console.error(
+          "[EcoScan AI Vision] Both attempts failed:",
+          lastErrorMessage
+        );
+      }
     }
 
     if (!rawText) {
       return {
         configured: true,
-        error:
-          "El modelo no pudo extraer un resultado concluyente de esta fotografía. Intenta tomar otra foto más enfocada o selecciona el material manualmente.",
+        error: `Error al procesar con IA: ${lastErrorMessage}`,
       };
     }
 

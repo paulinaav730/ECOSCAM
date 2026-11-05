@@ -360,7 +360,6 @@ export async function POST(req: NextRequest) {
 }
 
 async function recalculateAndSyncProfilePoints(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   userId: string
 ) {

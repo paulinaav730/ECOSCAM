@@ -307,13 +307,22 @@ function mapMobileNetLabelToWaste(
         confidence: prob,
       };
     }
+    if (/battery|accumulator|cell|torch|flashlight/.test(label)) {
+      return {
+        objectName: 'Pilas domésticas y baterías',
+        primaryMaterial: 'metal_quimico',
+        conditionState: 'limpio_seco',
+        requiresSpecialManagement: true,
+        confidence: prob,
+      };
+    }
     if (
-      /cellular telephone|ipod|mouse|keyboard|remote control|modem|hard disc|laptop|joystick|monitor|electric fan|spotlight|lampshade|torch|flashlight|battery|switch/.test(
+      /cellular telephone|ipod|mouse|keyboard|remote control|modem|hard disc|laptop|joystick|monitor|electric fan|spotlight|lampshade|switch/.test(
         label
       )
     ) {
       return {
-        objectName: 'Residuo Electrónico (RAEE) / Pila Posconsumo',
+        objectName: 'Residuo Electrónico (RAEE) Posconsumo',
         primaryMaterial: 'raee',
         conditionState: 'limpio_seco',
         requiresSpecialManagement: true,
@@ -482,43 +491,11 @@ async function analyzeWastePhotoOnDevice(
         const rPlasticCyan = cyanBluePlasticPixels / count;
         const rGlossy = specularGlossyPixels / count;
 
-        let detectedName = 'Envase o Empaque Plástico (PET / PEAD)';
-        let detectedMaterial: MaterialType = 'plastico_pet';
-        let detectedCond: WasteConditionState =
-          conditionOverride || 'limpio_seco';
-
-        if (rOrganic > 0.24) {
-          detectedName = 'Residuo Orgánico (Fruta, Cáscara o Vegetal)';
-          detectedMaterial = 'organico';
-          detectedCond = conditionOverride || 'organico_fresco';
-        } else if (rCardboard > 0.22) {
-          detectedName = 'Caja o Empaque de Cartón';
-          detectedMaterial = 'carton';
-        } else if (rPaper > 0.42 && rGlossy < 0.08) {
-          detectedName = 'Hoja de Papel, Cuaderno o Documento';
-          detectedMaterial = 'papel';
-        } else if (rMetal > 0.45 && stdDev > 28) {
-          detectedName = 'Lata de Aluminio o Envase Metálico';
-          detectedMaterial = 'aluminio';
-        } else if (rPlasticCyan > 0.16 || rGlossy > 0.04) {
-          detectedName = 'Botella o Envase de Plástico (PET)';
-          detectedMaterial = 'plastico_pet';
-        } else {
-          detectedName = 'Empaque o Envase Reciclable';
-          detectedMaterial = 'plastico_pead';
-        }
-
+        // Si el modelo neuronal no concluyó el objeto, no inventar una botella o plástico por reflejo
         resolve({
-          conclusive: true,
-          analysis: buildMultiCriteriaAnalysis({
-            objectName: detectedName,
-            primaryMaterial: detectedMaterial,
-            conditionState: detectedCond,
-            municipality,
-            imageUrl: dataUrl,
-            aiConfidence: 0.78,
-            visualObservations: `Material principal detectado por análisis óptico de superficie: ${detectedName}. Puedes ajustar el material con un toque si lo deseas.`,
-          }),
+          conclusive: false,
+          reason:
+            'No fue posible determinar con certeza el residuo mediante la foto. Por favor indica qué residuo es o confirma el material a continuación.',
         });
       } catch {
         resolve({
@@ -712,7 +689,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4500);
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       // Si es una fotografía real sin queryName forzado, ejecutar en paralelo la visión en dispositivo (MobileNet v2 + Óptica de materiales)
       const onDevicePromise =
