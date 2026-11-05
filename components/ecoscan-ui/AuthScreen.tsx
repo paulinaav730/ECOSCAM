@@ -23,6 +23,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 interface AuthScreenProps {
   onLoginSuccess: (userData: {
+    userId?: string;
     name: string;
     email: string;
     city: string;
@@ -136,9 +137,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         });
         if (!error && data.user) {
           const meta = data.user.user_metadata || {};
-          setSuccessMsg('¡Sesión iniciada correctamente!');
+          setSuccessMsg('¡Sesión iniciada y sincronizada con Supabase!');
           setTimeout(() => {
             onLoginSuccess({
+              userId: data.user?.id,
               name:
                 meta.alias ||
                 meta.full_name ||
@@ -146,7 +148,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               email: data.user?.email || loginEmail.trim(),
               city: meta.municipality || 'Bogotá, Colombia',
             });
-          }, 500);
+          }, 400);
           setIsSubmitting(false);
           return;
         }
@@ -198,9 +200,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setIsSubmitting(true);
     const supabase = createSupabaseBrowserClient();
 
+    let createdUserId: string | undefined = undefined;
     if (supabase) {
       try {
-        await supabase.auth.signUp({
+        const { data } = await supabase.auth.signUp({
           email: regEmail.trim(),
           password: regPassword,
           options: {
@@ -210,6 +213,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             },
           },
         });
+        createdUserId = data.user?.id;
       } catch {
         // Continúa con sesión activa inmediata
       }
@@ -219,11 +223,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setSuccessMsg(`¡Cuenta creada con éxito para ${regName.trim()}!`);
     setTimeout(() => {
       onLoginSuccess({
+        userId: createdUserId,
         name: regName.trim(),
         email: regEmail.trim(),
         city: regCity,
       });
-    }, 600);
+    }, 500);
   };
 
   return (

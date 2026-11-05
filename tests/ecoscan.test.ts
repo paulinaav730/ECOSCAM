@@ -21,6 +21,7 @@ import {
 import { WokwiESP32ControllerBridge } from "@/lib/wokwi/esp32-controller";
 import { ECOWORLD_REWARD_CONFIG } from "@/components/ecoscan-ui/types";
 import { INITIAL_ECOWORLD_PROGRESS } from "@/components/ecoscan-ui/EcoWorldScreen";
+import { buildMultiCriteriaAnalysis } from "@/lib/recycling-adapter";
 
 describe("EcoScan — Motor de Reglas de Clasificación Ambiental (Res. 2184 de 2019 y Posconsumo)", () => {
   it("clasifica botella PET limpia y seca en recipiente BLANCO (Aprovechable)", () => {
@@ -224,7 +225,7 @@ describe("EcoScan — Servicio de IA y Puntos de Recolección", () => {
   it("aplica límite de tasa (rate limit) para proteger el endpoint de IA", () => {
     const testIp = "test-client-ip-rate-limit";
     let lastCheck = { allowed: true };
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 30; i++) {
       lastCheck = checkAIRateLimit(testIp);
     }
     expect(lastCheck.allowed).toBe(false);
@@ -266,5 +267,41 @@ describe("EcoScan — Integración ECO WORLD 2D y Wokwi ESP32", () => {
     expect(WokwiESP32ControllerBridge.normalizePotentiometerADC(0)).toBe(-1);
     expect(WokwiESP32ControllerBridge.normalizePotentiometerADC(2048)).toBe(0);
     expect(WokwiESP32ControllerBridge.normalizePotentiometerADC(4095)).toBe(1);
+  });
+
+  it("diferencia entre el material físico del objeto y su categoría de separación en Colombia y asigna EcoPoints", () => {
+    const cleanCardboard = buildMultiCriteriaAnalysis({
+      objectName: "Caja de cartón limpia",
+      primaryMaterial: "carton",
+      conditionState: "limpio_seco",
+      aiConfidence: 0.92,
+    });
+    expect(cleanCardboard.primaryMaterialLabel).toContain("Cartón");
+    expect(cleanCardboard.separationCategoryLabel).toContain("Aprovechable");
+    expect(cleanCardboard.binColor).toBe("Blanco");
+    expect(cleanCardboard.disposalInstructions?.length).toBeGreaterThan(0);
+    expect(cleanCardboard.preparationSteps.length).toBeGreaterThan(0);
+    expect(cleanCardboard.ecoPoints).toBe(25);
+    expect(cleanCardboard.isConclusive).toBe(true);
+
+    const greasyCardboard = buildMultiCriteriaAnalysis({
+      objectName: "Cartón engrasado con comida",
+      primaryMaterial: "carton",
+      conditionState: "contaminado_comida",
+      aiConfidence: 0.88,
+    });
+    expect(greasyCardboard.primaryMaterialLabel).toContain("Cartón");
+    expect(greasyCardboard.separationCategoryLabel).toContain("No Aprovechable");
+    expect(greasyCardboard.binColor).toBe("Negro");
+    expect(greasyCardboard.ecoPoints).toBe(25);
+
+    const inconclusiveScan = buildMultiCriteriaAnalysis({
+      objectName: "Objeto borroso no identificable",
+      primaryMaterial: "compuesto_desconocido",
+      conditionState: "desconocido",
+      aiConfidence: 0.25,
+    });
+    expect(inconclusiveScan.isConclusive).toBe(false);
+    expect(inconclusiveScan.ecoPoints).toBe(0);
   });
 });

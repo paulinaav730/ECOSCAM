@@ -44,6 +44,9 @@ export interface WasteAnalysis {
   ruleCode?: string;
   ruleName?: string;
   primaryMaterial?: MaterialType;
+  primaryMaterialLabel?: string;
+  separationCategoryLabel?: string;
+  disposalInstructions?: string;
   conditionEvaluated?: WasteConditionState;
   containerLabel?: string;
   recommendation?: string;
@@ -57,15 +60,21 @@ export interface WasteAnalysis {
   specialManagementDetails?: SpecialManagementDetails | null;
   verifiedSource?: EnvironmentalSource;
   municipalityContext?: string;
+  confidenceScore?: number;
+  isConclusive?: boolean;
+  visualObservations?: string;
+  scanFingerprint?: string;
 }
 
 export interface HistoryItem extends WasteAnalysis {
   id: string;
   scannedAt: string; // ISO date string
+  userId?: string;
   userNotes?: string;
 }
 
 export interface UserProfile {
+  userId?: string;
   name: string;
   email?: string;
   city: string;

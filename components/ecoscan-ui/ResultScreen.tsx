@@ -8,7 +8,6 @@ import {
   ListChecks,
   PackageCheck,
   Leaf,
-  BookmarkCheck,
   ChevronRight,
   Info,
   RotateCcw,
@@ -17,6 +16,7 @@ import {
   SlidersHorizontal,
   ExternalLink,
   AlertTriangle,
+  Layers,
 } from 'lucide-react';
 import { WasteAnalysis, TabType } from './types';
 import { WasteConditionState } from '@/types/ecoscan';
@@ -41,18 +41,15 @@ const LIVE_CONDITION_BUTTONS: {
 
 export const ResultScreen: React.FC<ResultScreenProps> = ({
   analysis,
-  onSaveToHistory,
   setActiveTab,
   onReevaluateCondition,
-  isSaved = false,
+  isSaved = true,
 }) => {
   const [checkedSteps, setCheckedSteps] = useState<Record<number, boolean>>({});
-  const [justSaved, setJustSaved] = useState<boolean>(isSaved);
 
   useEffect(() => {
     setCheckedSteps({});
-    setJustSaved(isSaved);
-  }, [analysis?.wasteName, analysis?.conditionEvaluated, isSaved]);
+  }, [analysis?.wasteName, analysis?.conditionEvaluated]);
 
   if (!analysis) {
     return (
@@ -78,11 +75,6 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
 
   const toggleStep = (idx: number) => {
     setCheckedSteps((prev) => ({ ...prev, [idx]: !prev[idx] }));
-  };
-
-  const handleSave = () => {
-    onSaveToHistory(analysis);
-    setJustSaved(true);
   };
 
   const getBinBadgeStyle = (binColor: string) => {
@@ -125,13 +117,15 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
 
   return (
     <div className="space-y-4 pb-20 animate-fadeIn">
-      {/* Header Banner with Eco Points */}
-      <div className="flex items-center justify-between bg-emerald-950/60 border border-emerald-500/30 p-3.5 rounded-2xl">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+      {/* Header Banner con Confirmación de Acreditación Automática de Puntos e Historial */}
+      <div className="flex items-center justify-between bg-emerald-950/80 border border-emerald-500/40 p-3.5 rounded-2xl shadow-lg">
+        <div className="flex items-center gap-2.5">
+          <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
           <div>
-            <p className="text-xs font-bold text-white">
-              Evaluación Multicriterio Completada
+            <p className="text-xs font-extrabold text-white">
+              {isSaved
+                ? '¡Guardado automáticamente en tu Historial!'
+                : 'Evaluación Multicriterio Completada'}
             </p>
             <p className="text-[10px] text-emerald-300">
               {analysis.ruleCode
@@ -140,12 +134,13 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
             </p>
           </div>
         </div>
-        <div className="bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 px-3 py-1 rounded-full text-xs font-black">
-          +{analysis.ecoPoints} Pts Eco
+        <div className="bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 px-3 py-1.5 rounded-full text-xs font-black flex items-center gap-1 flex-shrink-0">
+          <Sparkles className="w-3.5 h-3.5 fill-yellow-300" />
+          <span>+{analysis.ecoPoints} Pts Eco</span>
         </div>
       </div>
 
-      {/* Main Identified Item Card */}
+      {/* Main Identified Item Card (Incluye explícitamente los 7 datos del reconocimiento) */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-xl">
         <div className="flex items-start gap-4">
           {analysis.imageUrl ? (
@@ -160,7 +155,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
             </div>
           )}
 
-          <div className="space-y-1.5 flex-1">
+          <div className="space-y-1.5 flex-1 min-w-0">
             <div className="flex flex-wrap gap-1.5">
               <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-800 text-emerald-400 border border-slate-700">
                 {analysis.category.replace('_', ' ')}
@@ -171,9 +166,40 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                 </span>
               )}
             </div>
+            {/* 1. Nombre del residuo identificado */}
             <h2 className="text-lg font-extrabold text-white leading-tight">
               {analysis.wasteName}
             </h2>
+            {analysis.visualObservations && (
+              <p className="text-[11px] text-slate-400 leading-snug">
+                {analysis.visualObservations}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* DIFERENCIACIÓN EXPLÍCITA: 2. MATERIAL PRINCIPAL vs 3. CATEGORÍA DE SEPARACIÓN vs 4. RECIPIENTE */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-slate-800">
+          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 space-y-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 flex items-center gap-1">
+              <Layers className="w-3 h-3" />
+              Material Principal del Objeto
+            </span>
+            <p className="text-xs font-bold text-white leading-snug">
+              {analysis.primaryMaterialLabel ||
+                analysis.category.replace('_', ' ').toUpperCase()}
+            </p>
+          </div>
+
+          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3 space-y-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400 flex items-center gap-1">
+              <Recycle className="w-3 h-3" />
+              Categoría de Disposición (Colombia)
+            </span>
+            <p className="text-xs font-bold text-white leading-snug">
+              {analysis.separationCategoryLabel ||
+                `Ruta ${analysis.binColor}`}
+            </p>
           </div>
         </div>
 
@@ -182,7 +208,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
           <div className="bg-slate-950/90 border border-slate-800 rounded-2xl p-3 space-y-2">
             <p className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5">
               <SlidersHorizontal className="w-3.5 h-3.5" />
-              ¿En qué estado real está tu residuo? (Cambia la ruta en vivo):
+              ¿En qué estado real está tu residuo? (Actualiza la ruta en vivo):
             </p>
             <div className="grid grid-cols-2 gap-1.5">
               {LIVE_CONDITION_BUTTONS.map((btn) => {
@@ -206,10 +232,10 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
           </div>
         )}
 
-        {/* COLOMBIA RUTA / CANECA BADGE */}
+        {/* 4. COLOR DEL RECIPIENTE Y 5. INSTRUCCIONES PARA DESECHARLO CORRECTAMENTE */}
         <div className="space-y-2 pt-2 border-t border-slate-800">
           <p className="text-xs font-bold text-slate-300">
-            Decisión del Sistema Inteligente de Reciclaje:
+            Recipiente Oficial e Instrucciones de Disposición:
           </p>
 
           <div
@@ -224,7 +250,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                 style={{ backgroundColor: analysis.binHexColor }}
               />
             </div>
-            <p className="text-xs leading-relaxed opacity-95">
+            <p className="text-xs leading-relaxed opacity-95 font-medium">
               {analysis.binDescription}
             </p>
           </div>
@@ -263,12 +289,12 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
         </div>
       )}
 
-      {/* CÓMO PREPARAR EL RESIDUO */}
+      {/* 6. RECOMENDACIONES DE LIMPIEZA O PREPARACIÓN PASO A PASO */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
             <ListChecks className="w-4 h-4 text-emerald-400 stroke-[2.2]" />
-            Cómo preparar el residuo paso a paso
+            Recomendaciones de Limpieza y Preparación
           </h3>
           <span className="text-[10px] text-slate-400">Checklist interactivo</span>
         </div>
@@ -424,22 +450,14 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
         )}
       </div>
 
-      {/* ACTION BUTTONS */}
+      {/* BOTONES DE NAVEGACIÓN (El escaneo ya quedó guardado automáticamente) */}
       <div className="space-y-2 pt-2">
-        {!justSaved ? (
-          <button
-            onClick={handleSave}
-            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold py-3.5 rounded-2xl text-xs shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all active:scale-95"
-          >
-            <BookmarkCheck className="w-4 h-4 stroke-[2.5]" />
-            <span>Guardar en mi Historial (+{analysis.ecoPoints} Pts)</span>
-          </button>
-        ) : (
-          <div className="w-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 font-bold py-3.5 rounded-2xl text-xs flex items-center justify-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>¡Guardado en tu Historial de Reciclaje!</span>
-          </div>
-        )}
+        <div className="w-full bg-emerald-950/90 text-emerald-300 border border-emerald-500/40 font-bold py-3.5 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-md">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+          <span>
+            Escaneo registrado automáticamente en tu Historial (+{analysis.ecoPoints} Pts Eco acreditados)
+          </span>
+        </div>
 
         <div className="flex gap-2">
           <button
@@ -452,10 +470,10 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
 
           <button
             onClick={() => setActiveTab('historial')}
-            className="flex-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-emerald-400 font-bold py-3 rounded-2xl text-xs flex items-center justify-center gap-2 transition-colors"
+            className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3 rounded-2xl text-xs flex items-center justify-center gap-2 transition-colors shadow-md shadow-emerald-500/20"
           >
-            <span>Ver Mi Historial</span>
-            <ChevronRight className="w-4 h-4" />
+            <span>Ver en Mi Historial</span>
+            <ChevronRight className="w-4 h-4 stroke-[2.5]" />
           </button>
         </div>
       </div>

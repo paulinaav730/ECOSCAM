@@ -180,8 +180,68 @@ function calculateEcoPoints(
   return 15; // Reconocer aislamiento correcto de no aprovechable para no contaminar
 }
 
+function getMaterialHumanLabel(material: MaterialType): string {
+  switch (material) {
+    case "plastico_pet":
+      return "Plástico PET (Tereftalato de Polietileno #1)";
+    case "plastico_pead":
+      return "Plástico PEAD (Polietileno de Alta Densidad #2)";
+    case "plastico_otro":
+      return "Plástico flexible o polímero mixto";
+    case "papel":
+      return "Papel de fibra de celulosa";
+    case "carton":
+      return "Cartón corrugado o plegadizo";
+    case "vidrio":
+      return "Vidrio de envase (Sílice reciclable)";
+    case "aluminio":
+      return "Aluminio metálico";
+    case "metal":
+      return "Metal ferroso / Hojalata";
+    case "multicapa":
+      return "Envase Multicapa (Cartón + Polietileno + Aluminio / Tetra Pak)";
+    case "organico":
+      return "Materia orgánica biodegradable (Restos vegetales/alimentos)";
+    case "metal_quimico":
+      return "Celdas electroquímicas / Metales pesados (Pilas y acumuladores)";
+    case "farmaceutico":
+      return "Compuesto químico farmacéutico / Medicamento";
+    case "raee":
+      return "Residuo de Aparato Eléctrico y Electrónico (RAEE)";
+    case "iluminacion_raee":
+      return "Vidrio con componentes electrónicos o mercurio (Luminaria)";
+    case "textil":
+      return "Fibra textil / Ropa o calzado";
+    case "aceite_vegetal":
+      return "Lípido / Aceite de Cocina Usado (ACU)";
+    case "compuesto_desconocido":
+    default:
+      return "Material compuesto o pendiente de verificación";
+  }
+}
+
+function getSeparationCategoryHumanLabel(finalCategory: string): string {
+  switch (finalCategory) {
+    case "aprovechable":
+      return "Residuo Aprovechable (Reciclable Limpio y Seco)";
+    case "organico_aprovechable":
+      return "Residuo Orgánico Aprovechable (Compostaje / Biodegradable)";
+    case "no_aprovechable":
+      return "Residuo No Aprovechable (Disposición Final en Caneca Negra)";
+    case "posconsumo_especial":
+      return "Gestión Especial Posconsumo (Prohibido en Canecas Domésticas)";
+    case "requiere_verificacion":
+    default:
+      return "Separación Condicionada / Requiere Verificación de Estado";
+  }
+}
+
 export function buildMultiCriteriaAnalysis(
-  input: RuleEngineInput & { imageUrl?: string }
+  input: RuleEngineInput & {
+    imageUrl?: string;
+    visualObservations?: string;
+    scanFingerprint?: string;
+  }
 ): WasteAnalysis {
   const evaluation = evaluateWasteClassification(input);
 
@@ -237,6 +297,14 @@ export function buildMultiCriteriaAnalysis(
     input.conditionState
   );
 
+  const primaryMaterialLabel = getMaterialHumanLabel(input.primaryMaterial);
+  const separationCategoryLabel = getSeparationCategoryHumanLabel(
+    evaluation.finalCategory
+  );
+  const isConclusive =
+    input.primaryMaterial !== "compuesto_desconocido" &&
+    (typeof input.aiConfidence !== "number" || input.aiConfidence >= 0.52);
+
   return {
     wasteName,
     category,
@@ -246,7 +314,7 @@ export function buildMultiCriteriaAnalysis(
     preparationSteps: evaluation.preparationSteps,
     derivedProducts,
     environmentalImpact,
-    ecoPoints,
+    ecoPoints: isConclusive ? ecoPoints : 0,
     tips: evaluation.municipalityContext,
     imageUrl: input.imageUrl,
 
@@ -254,6 +322,9 @@ export function buildMultiCriteriaAnalysis(
     ruleCode: evaluation.ruleCode,
     ruleName: evaluation.ruleName,
     primaryMaterial: input.primaryMaterial,
+    primaryMaterialLabel,
+    separationCategoryLabel,
+    disposalInstructions: evaluation.recommendation,
     conditionEvaluated: input.conditionState,
     containerLabel: evaluation.containerLabel,
     recommendation: evaluation.recommendation,
@@ -269,5 +340,9 @@ export function buildMultiCriteriaAnalysis(
     specialManagementDetails: evaluation.specialManagementDetails,
     verifiedSource: evaluation.source,
     municipalityContext: evaluation.municipalityContext,
+    confidenceScore: input.aiConfidence,
+    isConclusive,
+    visualObservations: input.visualObservations,
+    scanFingerprint: input.scanFingerprint,
   };
 }

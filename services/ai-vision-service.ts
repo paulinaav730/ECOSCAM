@@ -1,18 +1,31 @@
 import { GoogleGenAI } from "@google/genai";
 import { AIVisionAnalysisResult } from "@/types/ecoscan";
 
-export function isGeminiVisionConfigured(): boolean {
-  const key = process.env.GEMINI_API_KEY;
-  return Boolean(
-    key &&
+export function getGeminiApiKey(): string | undefined {
+  const candidates = [
+    process.env.GEMINI_API_KEY,
+    process.env.GOOGLE_API_KEY,
+    process.env.NEXT_PUBLIC_GEMINI_API_KEY,
+  ];
+  for (const key of candidates) {
+    if (
+      key &&
       key.trim().length > 15 &&
-      key !== "tu_gemini_api_key_privada_aqui"
-  );
+      key.trim() !== "tu_gemini_api_key_privada_aqui"
+    ) {
+      return key.trim();
+    }
+  }
+  return undefined;
+}
+
+export function isGeminiVisionConfigured(): boolean {
+  return Boolean(getGeminiApiKey());
 }
 
 // Control básico de tasa por memoria en el servidor para proteger el endpoint de IA frente a usos abusivos
 const rateLimitWindowMs = 60_000;
-const maxRequestsPerMinute = 12;
+const maxRequestsPerMinute = 15;
 const ipRequestTimestamps = new Map<string, number[]>();
 
 export function checkAIRateLimit(clientIdentifier: string): {
@@ -25,7 +38,9 @@ export function checkAIRateLimit(clientIdentifier: string): {
 
   if (validTimestamps.length >= maxRequestsPerMinute) {
     const oldest = validTimestamps[0];
-    const retryAfterSeconds = Math.ceil((rateLimitWindowMs - (now - oldest)) / 1000);
+    const retryAfterSeconds = Math.ceil(
+      (rateLimitWindowMs - (now - oldest)) / 1000
+    );
     return { allowed: false, retryAfterSeconds };
   }
 
@@ -40,7 +55,7 @@ const VISION_RESPONSE_JSON_SCHEMA = {
     probableObjectName: {
       type: "string",
       description:
-        "Nombre probable en español cotidiano de Colombia (ej. Botella de plástico PET, Caja de pizza, Pila alcalina, Medicamento vencido).",
+        "Nombre exacto del objeto o residuo en español cotidiano de Colombia (ej. Botella de plástico PET, Caja de cartón corrugado, Cáscara de banano, Lata de aluminio, Vaso de papel, Servilleta usada, Pila alcalina, Blíster de medicamentos). Si no se distingue un residuo claro, responde 'Imagen no concluyente'.",
     },
     primaryMaterial: {
       type: "string",
@@ -94,7 +109,8 @@ const VISION_RESPONSE_JSON_SCHEMA = {
     },
     confidenceScore: {
       type: "number",
-      description: "Nivel de certeza entre 0.0 y 1.0.",
+      description:
+        "Nivel de certeza entre 0.0 y 1.0. Si la imagen es borrosa, oscura o no muestra un residuo reconocible, debe ser menor a 0.45.",
     },
     hasContaminationWarning: {
       type: "boolean",
@@ -113,6 +129,8 @@ const VISION_RESPONSE_JSON_SCHEMA = {
     },
     visualObservations: {
       type: "string",
+      description:
+        "Descripción breve de lo que se observa físicamente en la imagen (textura, forma, limpieza o por qué no es concluyente).",
     },
   },
   required: [
@@ -132,7 +150,7 @@ const VISION_RESPONSE_JSON_SCHEMA = {
 
 /**
  * Analiza una imagen de residuo utilizando Google Gemini (gemini-3.8-flash) mediante la Interactions API.
- * Nunca simula un análisis de IA cuando falta GEMINI_API_KEY.
+ * Nunca simula un análisis de IA ni inventa "Botella PET" cuando falta GEMINI_API_KEY o cuando la imagen no es clara.
  */
 export async function analyzeWasteImageWithGemini(params: {
   imageBase64: string;
@@ -143,11 +161,12 @@ export async function analyzeWasteImageWithGemini(params: {
   analysis?: AIVisionAnalysisResult;
   error?: string;
 }> {
-  if (!isGeminiVisionConfigured()) {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
     return {
       configured: false,
       error:
-        "El reconocimiento por imágenes no está configurado en este entorno (falta GEMINI_API_KEY en el servidor). Puedes clasificar el residuo inmediatamente usando el buscador por texto o el selector de materiales y estado.",
+        "El servicio de visión artificial no está configurado todavía (falta GEMINI_API_KEY en .env.local o Vercel). Por favor confirma abajo qué residuo aparece en tu foto o usa el buscador del catálogo.",
     };
   }
 
@@ -158,70 +177,122 @@ export async function analyzeWasteImageWithGemini(params: {
     );
 
     const client = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
+      apiKey,
     });
 
-    const systemPrompt = `Eres el módulo de visión artificial de EcoScan Colombia.
-Tu tarea es examinar la fotografía de un residuo y extraer sus características físicas observables (objeto probable, material principal, materiales secundarios, condición de limpieza/contaminación e incertidumbre).
-Reglas estrictas:
-1. Una fotografía NO siempre permite conocer la composición química exacta ni si el interior de un envase contiene trazas peligrosas. Sé prudente con el confidenceScore.
-2. Si ves manchas de grasa, líquidos restantes, restos de comida o etiquetas de productos químicos/medicamentos, repórtalo en detectedCondition y contaminationNotes.
-3. Si la imagen es borrosa, ambigua o no muestra un residuo claro, asigna confidenceScore menor a 0.50, primaryMaterial "compuesto_desconocido" y formula preguntas de seguimiento claras en followUpQuestions.
-4. Responde exclusivamente en español y siguiendo el esquema JSON solicitado.`;
+    const systemPrompt = `Eres el sistema experto de visión artificial de EcoScan Colombia (Resolución 2184 de 2019 y Programas Posconsumo).
+Examina con máxima precisión la fotografía y clasifica el objeto o residuo real que aparece en ella:
+1. IDENTIFICACIÓN PRECISA DE MATERIALES:
+   - Si es una fruta, cáscara (ej. banano, naranja, huevo), verdura, restos de comida cruda o poda: usa primaryMaterial="organico", detectedCondition="organico_fresco", suggestedCategory="organico_aprovechable".
+   - Si es una caja de cartón, empaque de cartón o cubeta de huevos: usa primaryMaterial="carton". Si tiene grasa (como caja de pizza usada), usa detectedCondition="parcialmente_contaminado" o "contaminado_grasa".
+   - Si es una hoja de papel, cuaderno, factura o periódico limpio: usa primaryMaterial="papel", detectedCondition="limpio_seco".
+   - Si es una servilleta usada, papel higiénico, pañuelo facial o papel engrasado: usa primaryMaterial="papel", detectedCondition="contaminado_comida", suggestedCategory="no_aprovechable".
+   - Si es una botella transparente de agua/gaseosa: usa primaryMaterial="plastico_pet". Si es un envase rígido opaco de champú/detergente/yogur: usa primaryMaterial="plastico_pead". Si es un paquete metalizado de mecato/papitas o bolsa plástica: usa primaryMaterial="plastico_otro".
+   - Si es una caja de leche o jugo tipo Tetra Pak: usa primaryMaterial="multicapa".
+   - Si es una botella o frasco de vidrio: usa primaryMaterial="vidrio".
+   - Si es una lata de bebida (aluminio) o lata de conserva/atún (hojalata): usa primaryMaterial="aluminio" o "metal".
+   - Si es una pila/batería ("metal_quimico"), medicamento/pastilla/blíster ("farmaceutico"), celular/cable/computador ("raee"), bombillo ("iluminacion_raee") o botella con aceite de cocina usado ("aceite_vegetal"): usa suggestedCategory="posconsumo_especial".
+2. NO INVENTAR IDENTIFICACIONES:
+   - NUNCA digas por defecto que es una botella de plástico si no ves claramente una botella de plástico.
+   - Si la foto está muy borrosa, totalmente oscura, muestra solo un rostro/persona/pared sin ningún residuo identificable, asigna probableObjectName="Imagen no concluyente — Objeto no distinguible", primaryMaterial="compuesto_desconocido", detectedCondition="desconocido", suggestedCategory="requiere_verificacion" y confidenceScore menor a 0.40.
+3. Responde exclusivamente en español siguiendo el esquema JSON.`;
 
     const promptText = params.userHint
-      ? `${systemPrompt}\n\nNota adicional del usuario sobre el objeto: "${params.userHint}".`
+      ? `${systemPrompt}\n\nPista proporcionada por el usuario: "${params.userHint}".`
       : systemPrompt;
 
-    const interaction = await client.interactions.create({
-      model: "gemini-3.8-flash",
-      store: false,
-      input: [
-        {
-          type: "image",
-          mime_type: params.mimeType,
-          data: cleanBase64,
-        },
-        {
-          type: "text",
-          text: promptText,
-        },
-      ],
-      response_format: [
-        {
+    let rawText: string | null | undefined = null;
+
+    try {
+      const interaction = await client.interactions.create({
+        model: "gemini-3.8-flash",
+        store: false,
+        input: [
+          {
+            type: "image",
+            mime_type: params.mimeType,
+            data: cleanBase64,
+          },
+          {
+            type: "text",
+            text: promptText,
+          },
+        ],
+        response_format: {
           type: "text",
           mime_type: "application/json",
           schema: VISION_RESPONSE_JSON_SCHEMA,
+        } as unknown as Record<string, unknown>,
+      });
+      rawText = interaction.output_text;
+    } catch (interactionErr) {
+      console.warn(
+        "[EcoScan AI Vision] Fallback to models.generateContent:",
+        interactionErr instanceof Error ? interactionErr.message : interactionErr
+      );
+      const genResult = await client.models.generateContent({
+        model: "gemini-3.8-flash",
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                inlineData: {
+                  mimeType: params.mimeType,
+                  data: cleanBase64,
+                },
+              },
+              {
+                text: promptText,
+              },
+            ],
+          },
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: VISION_RESPONSE_JSON_SCHEMA as unknown as Record<
+            string,
+            unknown
+          >,
         },
-      ],
-    });
+      });
+      rawText = genResult.text;
+    }
 
-    const rawText = interaction.output_text;
     if (!rawText) {
       return {
         configured: true,
         error:
-          "El servicio de visión no devolvió un análisis estructurado para esta imagen. Intenta con una fotografía más iluminada o usa la búsqueda por texto.",
+          "El modelo no pudo extraer un resultado concluyente de esta fotografía. Intenta tomar otra foto más enfocada o selecciona el material manualmente.",
       };
     }
 
-    const parsed = JSON.parse(rawText) as AIVisionAnalysisResult;
+    const cleanedJson = rawText
+      .replace(/^```json\s*/i, "")
+      .replace(/```\s*$/i, "")
+      .trim();
+    const parsed = JSON.parse(cleanedJson) as AIVisionAnalysisResult;
 
     return {
       configured: true,
       analysis: {
         ...parsed,
-        confidenceScore: Math.max(0, Math.min(1, Number(parsed.confidenceScore) || 0.5)),
+        confidenceScore: Math.max(
+          0,
+          Math.min(1, Number(parsed.confidenceScore) || 0.5)
+        ),
       },
     };
   } catch (err) {
     const message =
-      err instanceof Error ? err.message : "Error inesperado en el proveedor de visión.";
+      err instanceof Error
+        ? err.message
+        : "Error inesperado en el proveedor de visión.";
     console.error("[EcoScan AI Vision Error]:", message);
     return {
       configured: true,
       error:
-        "No fue posible completar el análisis visual en este momento. Puedes seleccionar el objeto manualmente o usar el buscador del catálogo.",
+        "No se pudo identificar el residuo con suficiente confianza en la imagen. Por favor intenta con otra fotografía más iluminada o confirma el material del residuo a continuación.",
     };
   }
 }

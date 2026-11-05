@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Header } from '@/components/ecoscan-ui/Header';
 import { BottomNavigation } from '@/components/ecoscan-ui/BottomNavigation';
 import { HomeScreen } from '@/components/ecoscan-ui/HomeScreen';
@@ -25,6 +25,7 @@ import {
   Badge,
 } from '@/components/ecoscan-ui/types';
 import { buildMultiCriteriaAnalysis } from '@/lib/recycling-adapter';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { WasteConditionState } from '@/types/ecoscan';
 
 const INITIAL_BADGES: Badge[] = [
@@ -176,9 +177,41 @@ function getEcoWorldStorageKey(email?: string): string {
   return `ecoScan_ecoWorld_v1_${cleanEmail}`;
 }
 
+function computeClientFingerprint(analysis: WasteAnalysis): string {
+  if (analysis.scanFingerprint) return analysis.scanFingerprint;
+  const imgSlice = (analysis.imageUrl || '').slice(-140);
+  const raw = `${analysis.wasteName}|${analysis.primaryMaterial || analysis.category}|${analysis.conditionEvaluated || 'limpio_seco'}|${imgSlice}`;
+  let hash = 0;
+  for (let i = 0; i < raw.length; i++) {
+    hash = (hash << 5) - hash + raw.charCodeAt(i);
+    hash |= 0;
+  }
+  return `fp_${Math.abs(hash).toString(36)}`;
+}
+
+function mergeHistoryLists(
+  remoteItems: HistoryItem[],
+  localItems: HistoryItem[]
+): HistoryItem[] {
+  const map = new Map<string, HistoryItem>();
+  for (const item of [...remoteItems, ...localItems]) {
+    const key = item.scanFingerprint || item.id;
+    if (!map.has(key)) {
+      map.set(key, item);
+    }
+  }
+  return Array.from(map.values()).sort(
+    (a, b) =>
+      new Date(b.scannedAt || 0).getTime() - new Date(a.scannedAt || 0).getTime()
+  );
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('inicio');
   const [activeAnalysis, setActiveAnalysis] = useState<WasteAnalysis | null>(
+    null
+  );
+  const [activeScanRecordId, setActiveScanRecordId] = useState<string | null>(
     null
   );
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
@@ -186,9 +219,15 @@ export default function App() {
     string | null
   >(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [pointsToast, setPointsToast] = useState<{
+    points: number;
+    wasteName: string;
+    binColor: string;
+    isDuplicate?: boolean;
+  } | null>(null);
 
-  // Por defecto al entrar por primera vez sin sesión abierta: isLoggedIn = false
   const [userAccount, setUserAccount] = useState<{
+    userId?: string;
     name: string;
     email: string;
     city: string;
@@ -196,24 +235,83 @@ export default function App() {
   }>({
     name: '',
     email: '',
-    city: 'Bogotá, Colombia',
+    city: 'Medellín, Antioquia',
     isLoggedIn: false,
   });
 
-  // Todo usuario nuevo empieza con historial vacío (0 puntos, 0 escaneados, 0 medallas)
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [ecoWorldProgress, setEcoWorldProgress] =
     useState<EcoWorldProgressData>(INITIAL_ECOWORLD_PROGRESS);
   const [hydrated, setHydrated] = useState(false);
 
-  // Hydrate account, personal history, and Eco World progress from localStorage on client mount
+  // Sincronización con Supabase (servidor + cliente)
+  const syncUserDataFromServer = useCallback(async (email: string) => {
+    if (!email) return;
+    try {
+      const res = await fetch('/api/user-data', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) return;
+      const payload = await res.json();
+      if (!payload?.authenticated) return;
+
+      if (Array.isArray(payload.history)) {
+        setHistory((prevLocal) => {
+          const merged = mergeHistoryLists(payload.history, prevLocal);
+          try {
+            localStorage.setItem(
+              getHistoryStorageKey(email),
+              JSON.stringify(merged)
+            );
+          } catch {
+            // ignore storage quota errors
+          }
+          return merged;
+        });
+
+        // Si había elementos locales que aún no estaban en Supabase, sincronizarlos
+        const localRaw = localStorage.getItem(getHistoryStorageKey(email));
+        const localParsed: HistoryItem[] = localRaw ? JSON.parse(localRaw) : [];
+        const remoteFpSet = new Set(
+          (payload.history as HistoryItem[]).map(
+            (h) => h.scanFingerprint || h.id
+          )
+        );
+        const unsynced = localParsed.filter(
+          (l) => !remoteFpSet.has(l.scanFingerprint || l.id)
+        );
+        for (const item of unsynced.slice(0, 15)) {
+          fetch('/api/user-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'save_scan', item }),
+          }).catch(() => {});
+        }
+      }
+
+      if (payload.ecoWorldProgress) {
+        setEcoWorldProgress((prev) => {
+          const remotePts = payload.ecoWorldProgress.totalEcoWorldPoints || 0;
+          const localPts = prev.totalEcoWorldPoints || 0;
+          return remotePts >= localPts ? payload.ecoWorldProgress : prev;
+        });
+      }
+    } catch {
+      // Fallback silencioso a almacenamiento local si está offline
+    }
+  }, []);
+
+  // Hydrate account, personal history, Eco World progress, and active Supabase session
   useEffect(() => {
+    let activeEmail = '';
     try {
       const savedAccount = localStorage.getItem('ecoScan_authSession_v2');
       if (savedAccount) {
         const parsedAccount = JSON.parse(savedAccount);
         setUserAccount(parsedAccount);
         if (parsedAccount?.email) {
+          activeEmail = parsedAccount.email;
           const userHistoryRaw = localStorage.getItem(
             getHistoryStorageKey(parsedAccount.email)
           );
@@ -232,8 +330,44 @@ export default function App() {
     } catch (e) {
       console.error('Error reading localStorage:', e);
     }
+
     setHydrated(true);
-  }, []);
+
+    // Verificar sesión activa de Supabase Auth y sincronizar puntos e historial desde la base de datos
+    const supabase = createSupabaseBrowserClient();
+    if (supabase) {
+      supabase.auth
+        .getSession()
+        .then(({ data }) => {
+          const sessionUser = data?.session?.user;
+          if (sessionUser?.email) {
+            const meta = sessionUser.user_metadata || {};
+            const email = sessionUser.email;
+            setUserAccount((prev) => ({
+              userId: sessionUser.id,
+              name:
+                prev.name ||
+                (meta.full_name as string) ||
+                email.split('@')[0],
+              email,
+              city:
+                prev.city ||
+                (meta.city as string) ||
+                'Medellín, Antioquia',
+              isLoggedIn: true,
+            }));
+            syncUserDataFromServer(email);
+          } else if (activeEmail) {
+            syncUserDataFromServer(activeEmail);
+          }
+        })
+        .catch(() => {
+          if (activeEmail) syncUserDataFromServer(activeEmail);
+        });
+    } else if (activeEmail) {
+      syncUserDataFromServer(activeEmail);
+    }
+  }, [syncUserDataFromServer]);
 
   // Save account session
   useEffect(() => {
@@ -350,9 +484,10 @@ export default function App() {
   });
 
   const userProfile: UserProfile = {
+    userId: userAccount.userId,
     name: userAccount.name || 'Usuario EcoScan',
     email: userAccount.email,
-    city: userAccount.city || 'Bogotá, Colombia',
+    city: userAccount.city || 'Medellín, Antioquia',
     isLoggedIn: userAccount.isLoggedIn,
     levelName,
     levelNumber,
@@ -366,7 +501,74 @@ export default function App() {
     badges,
   };
 
+  // Guardar análisis en historial personal y en Supabase (con deduplicación por huella de escaneo)
+  const persistScanToHistoryAndSupabase = useCallback(
+    (analysis: WasteAnalysis): { item: HistoryItem; isDuplicate: boolean } => {
+      const fingerprint = computeClientFingerprint(analysis);
+      const nowIso = new Date().toISOString();
+      let resultItem: HistoryItem = {
+        ...analysis,
+        id: `scan-${Date.now()}`,
+        userId: userAccount.userId,
+        scannedAt: nowIso,
+        scanFingerprint: fingerprint,
+      };
+      let duplicateFound = false;
+
+      setHistory((prev) => {
+        const existingIdx = prev.findIndex(
+          (item) =>
+            (item.scanFingerprint && item.scanFingerprint === fingerprint) ||
+            (item.wasteName === analysis.wasteName &&
+              item.conditionEvaluated === analysis.conditionEvaluated &&
+              Date.now() - new Date(item.scannedAt).getTime() < 45_000)
+        );
+
+        if (existingIdx !== -1) {
+          duplicateFound = true;
+          resultItem = prev[existingIdx];
+          return prev;
+        }
+
+        const updated = [resultItem, ...prev];
+        if (userAccount.email) {
+          try {
+            localStorage.setItem(
+              getHistoryStorageKey(userAccount.email),
+              JSON.stringify(updated)
+            );
+          } catch {
+            // ignore quota
+          }
+        }
+        return updated;
+      });
+
+      if (!duplicateFound) {
+        fetch('/api/user-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'save_scan',
+            item: resultItem,
+          }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data?.recordId) {
+              setActiveScanRecordId(data.recordId);
+            }
+          })
+          .catch(() => {});
+      }
+
+      return { item: resultItem, isDuplicate: duplicateFound };
+    },
+    [userAccount.email, userAccount.userId]
+  );
+
   const handleLoginSuccess = (userData: {
+    userId?: string;
     name: string;
     email: string;
     city: string;
@@ -394,6 +596,7 @@ export default function App() {
     setEcoWorldProgress(personalEcoWorld);
     setActiveAnalysis(null);
     setUserAccount({
+      userId: userData.userId,
       name: userData.name,
       email: userData.email,
       city: userData.city,
@@ -401,13 +604,20 @@ export default function App() {
     });
     setActiveTab('inicio');
     setIsAuthModalOpen(false);
+
+    // Sincronizar inmediatamente con Supabase
+    syncUserDataFromServer(userData.email);
   };
 
   const handleLogout = () => {
+    const supabase = createSupabaseBrowserClient();
+    if (supabase) {
+      supabase.auth.signOut().catch(() => {});
+    }
     setUserAccount({
       name: '',
       email: '',
-      city: 'Bogotá, Colombia',
+      city: 'Medellín, Antioquia',
       isLoggedIn: false,
     });
     setHistory([]);
@@ -416,10 +626,35 @@ export default function App() {
     setIsAuthModalOpen(false);
   };
 
+  // Escaneo completado -> Guarda automáticamente en el historial y acredita los EcoPoints de inmediato
   const handleAnalysisComplete = (result: WasteAnalysis, imageUrl?: string) => {
-    const finalResult = { ...result, imageUrl: imageUrl || result.imageUrl };
+    const finalResult: WasteAnalysis = {
+      ...result,
+      imageUrl: imageUrl || result.imageUrl,
+      scanFingerprint: computeClientFingerprint({
+        ...result,
+        imageUrl: imageUrl || result.imageUrl,
+      }),
+    };
+
     setActiveAnalysis(finalResult);
     setActiveTab('resultado');
+
+    if (finalResult.isConclusive !== false && finalResult.ecoPoints > 0) {
+      const { item, isDuplicate } =
+        persistScanToHistoryAndSupabase(finalResult);
+      setActiveScanRecordId(item.id);
+
+      setPointsToast({
+        points: finalResult.ecoPoints,
+        wasteName: finalResult.wasteName,
+        binColor: finalResult.binColor,
+        isDuplicate,
+      });
+      setTimeout(() => {
+        setPointsToast(null);
+      }, 4500);
+    }
   };
 
   const handleReevaluateCondition = (newCondition: WasteConditionState) => {
@@ -431,21 +666,57 @@ export default function App() {
       requiresSpecialManagement: activeAnalysis.requiresSpecialManagement,
       municipality: userProfile.city,
       imageUrl: activeAnalysis.imageUrl,
+      aiConfidence: activeAnalysis.confidenceScore,
+      visualObservations: activeAnalysis.visualObservations,
+      scanFingerprint: activeAnalysis.scanFingerprint,
     });
     setActiveAnalysis(updated);
+
+    // Actualizar el registro existente en el historial sin duplicar puntos
+    setHistory((prev) => {
+      if (prev.length === 0) return prev;
+      const targetFp = activeAnalysis.scanFingerprint;
+      const idx = prev.findIndex(
+        (h) =>
+          (targetFp && h.scanFingerprint === targetFp) ||
+          (activeScanRecordId && h.id === activeScanRecordId)
+      );
+      if (idx === -1) return prev;
+
+      const updatedItem: HistoryItem = {
+        ...prev[idx],
+        ...updated,
+        id: prev[idx].id,
+        scannedAt: prev[idx].scannedAt,
+        scanFingerprint: prev[idx].scanFingerprint,
+      };
+      const nextList = [...prev];
+      nextList[idx] = updatedItem;
+
+      fetch('/api/user-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_scan',
+          item: updatedItem,
+        }),
+      }).catch(() => {});
+
+      return nextList;
+    });
   };
 
   const handleSaveToHistory = (analysis: WasteAnalysis) => {
-    const newItem: HistoryItem = {
-      ...analysis,
-      id: 'scan-' + Date.now(),
-      scannedAt: new Date().toISOString(),
-    };
-    setHistory((prev) => [newItem, ...prev]);
+    persistScanToHistoryAndSupabase(analysis);
   };
 
   const handleDeleteHistoryItem = (id: string) => {
     setHistory((prev) => prev.filter((item) => item.id !== id));
+    fetch('/api/user-data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete_scan', id }),
+    }).catch(() => {});
   };
 
   const handleClearHistory = () => {
@@ -454,6 +725,11 @@ export default function App() {
     ) {
       setHistory([]);
       setActiveAnalysis(null);
+      fetch('/api/user-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'clear_history' }),
+      }).catch(() => {});
     }
   };
 
@@ -469,6 +745,7 @@ export default function App() {
 
   const handleSelectHistoryDetail = (item: HistoryItem) => {
     setActiveAnalysis(item);
+    setActiveScanRecordId(item.id);
     setActiveTab('resultado');
   };
 
@@ -480,9 +757,16 @@ export default function App() {
     setHistory([]);
     setEcoWorldProgress(INITIAL_ECOWORLD_PROGRESS);
     setActiveAnalysis(null);
+    fetch('/api/user-data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'clear_history' }),
+    }).catch(() => {});
   };
 
-  // Si aún no ha iniciado sesión ni se ha registrado, mostrar directamente la pantalla de bienvenida/registro rodeada de datos científicos y ambientales
+  const isGameTab = activeTab === 'ecoworld';
+
+  // Si aún no ha iniciado sesión ni se ha registrado, mostrar directamente la pantalla de bienvenida/registro
   if (!userAccount.isLoggedIn) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-emerald-500 selection:text-slate-950 relative overflow-x-hidden flex items-center justify-center p-4 md:p-8">
@@ -592,53 +876,93 @@ export default function App() {
         }}
       />
 
-      <div className="relative z-10 max-w-5xl mx-auto min-h-screen flex items-center justify-center p-0 md:p-6 gap-8">
-        {/* Desktop Side Hero Panel (Geometric Balance Theme) */}
-        <div className="hidden md:flex flex-col flex-1 max-w-sm space-y-6 text-left py-8">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-black tracking-wider uppercase w-fit">
-            <span>🇨🇴 EcoScan AI + Eco World 2D</span>
-          </div>
-
-          <h1 className="text-4xl font-black tracking-tight leading-tight text-white">
-            Reciclar nunca fue tan inteligente.
-          </h1>
-
-          <p className="text-slate-400 text-sm leading-relaxed">
-            Identifica tus residuos con Inteligencia Artificial, evalúa su{' '}
-            <strong>estado de limpieza y ruta Posconsumo</strong>, y juega{' '}
-            <strong className="text-emerald-400">ECO WORLD</strong> para
-            recuperar ecosistemas virtuales y ganar puntos extra.
-          </p>
-
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
-              <p className="text-2xl font-black text-emerald-400">
-                {userProfile.totalPoints}
-              </p>
-              <p className="text-xs font-bold text-slate-400">
-                Puntos Eco Totales
-              </p>
-              <p className="text-[10px] text-slate-500">
-                {scanPoints} escaneo + {ecoWorldPoints} Eco World
-              </p>
+      {/* Notificación Flotante de Acreditación de EcoPoints y Guardado en Historial */}
+      {pointsToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-md pointer-events-none animate-fadeIn">
+          <div className="p-3.5 rounded-2xl bg-emerald-950/95 border-2 border-emerald-400/70 shadow-2xl shadow-emerald-500/25 backdrop-blur-md flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500 text-slate-950 font-black flex items-center justify-center text-sm shrink-0 shadow-md">
+                +{pointsToast.points}
+              </div>
+              <div>
+                <p className="text-xs font-black text-emerald-300 uppercase tracking-wider">
+                  {pointsToast.isDuplicate
+                    ? 'Escaneo ya registrado en tu historial'
+                    : '¡EcoPoints acreditados y guardados!'}
+                </p>
+                <p className="text-xs text-white font-bold truncate max-w-[230px]">
+                  {pointsToast.wasteName} • Caneca {pointsToast.binColor}
+                </p>
+              </div>
             </div>
-            <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
-              <p className="text-2xl font-black text-teal-300">
-                {userProfile.badges.filter((b) => b.unlocked).length} /{' '}
-                {userProfile.badges.length}
-              </p>
-              <p className="text-xs font-bold text-slate-400">
-                Medallas Desbloqueadas
-              </p>
-              <p className="text-[10px] text-slate-500">
-                {ecoWorldProgress.missionsCompleted} / 4 ecosistemas
-              </p>
-            </div>
+            <span className="text-[11px] font-black text-emerald-300 bg-emerald-500/20 px-2.5 py-1 rounded-full border border-emerald-500/40 shrink-0">
+              Total: {userProfile.totalPoints} pts
+            </span>
           </div>
         </div>
+      )}
 
-        {/* Central Mobile Frame Container */}
-        <div className="w-full max-w-md min-h-screen md:min-h-[740px] md:h-[780px] flex flex-col relative shadow-2xl bg-slate-950 md:border md:border-slate-800 md:rounded-[40px] overflow-hidden">
+      <div
+        className={`relative z-10 mx-auto min-h-screen flex items-center justify-center p-0 ${
+          isGameTab
+            ? 'max-w-6xl md:p-4'
+            : 'max-w-5xl md:p-6 gap-8'
+        }`}
+      >
+        {/* Desktop Side Hero Panel (oculto cuando se abre ECO WORLD para darle pantalla completa al juego) */}
+        {!isGameTab && (
+          <div className="hidden md:flex flex-col flex-1 max-w-sm space-y-6 text-left py-8">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-black tracking-wider uppercase w-fit">
+              <span>🇨🇴 EcoScan AI + Eco World 2D</span>
+            </div>
+
+            <h1 className="text-4xl font-black tracking-tight leading-tight text-white">
+              Reciclar nunca fue tan inteligente.
+            </h1>
+
+            <p className="text-slate-400 text-sm leading-relaxed">
+              Identifica tus residuos con Inteligencia Artificial, evalúa su{' '}
+              <strong>estado de limpieza y ruta Posconsumo</strong>, y juega{' '}
+              <strong className="text-emerald-400">ECO WORLD</strong> para
+              recuperar ecosistemas virtuales y ganar puntos extra.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
+                <p className="text-2xl font-black text-emerald-400">
+                  {userProfile.totalPoints}
+                </p>
+                <p className="text-xs font-bold text-slate-400">
+                  Puntos Eco Totales
+                </p>
+                <p className="text-[10px] text-slate-500">
+                  {scanPoints} escaneo + {ecoWorldPoints} Eco World
+                </p>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
+                <p className="text-2xl font-black text-teal-300">
+                  {userProfile.badges.filter((b) => b.unlocked).length} /{' '}
+                  {userProfile.badges.length}
+                </p>
+                <p className="text-xs font-bold text-slate-400">
+                  Medallas Desbloqueadas
+                </p>
+                <p className="text-[10px] text-slate-500">
+                  {ecoWorldProgress.missionsCompleted} / 4 ecosistemas
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Contenedor Principal: Se expande a pantalla ancha tipo videojuego cuando activeTab === 'ecoworld' */}
+        <div
+          className={`w-full flex flex-col relative shadow-2xl bg-slate-950 md:border md:border-slate-800 overflow-hidden transition-all duration-300 ${
+            isGameTab
+              ? 'max-w-5xl min-h-screen md:min-h-[92vh] md:rounded-[32px]'
+              : 'max-w-md min-h-screen md:min-h-[760px] md:h-[820px] md:rounded-[40px]'
+          }`}
+        >
           {/* Header Bar */}
           <Header
             currentTab={activeTab}
@@ -648,7 +972,11 @@ export default function App() {
           />
 
           {/* Main Screen Content View */}
-          <main className="flex-1 px-4 pt-4 overflow-y-auto scrollbar-none">
+          <main
+            className={`flex-1 overflow-y-auto scrollbar-none ${
+              isGameTab ? 'px-2 sm:px-5 pt-3' : 'px-4 pt-4'
+            }`}
+          >
             {activeTab === 'inicio' && (
               <HomeScreen
                 setActiveTab={setActiveTab}
